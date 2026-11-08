@@ -4,6 +4,14 @@ All notable changes to this project. Versions follow [Semantic Versioning](https
 This plugin is based on [Homebridge Camera FFmpeg](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg)
 4.1.0; its own history is in [its changelog](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/blob/latest/CHANGELOG.md).
 
+## [Unreleased]
+
+### Changed
+
+- Published to npm: install it from the Homebridge UI's plugin search. Every release is published
+  by the repository's workflow, with npm provenance.
+- The package no longer contains the compiled tests.
+
 ## [0.1.0] - 2026-11-08
 
 The first release: Camera FFmpeg for battery eufy cameras behind the

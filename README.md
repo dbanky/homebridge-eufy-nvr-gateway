@@ -115,7 +115,10 @@ All other Camera FFmpeg settings work as usual. Notes for gateway cameras:
 running and reachable from the Homebridge host (its web page on port `8099`, its streams on `8554`),
 with your cameras in its `config.json`. This plugin depends on it and does not install it.
 
-The plugin is not on npm. Download `homebridge-eufy-nvr-gateway-<version>.tgz` from the
+**From npm:** in the Homebridge UI, search the *Plugins* tab for `homebridge-eufy-nvr-gateway` and
+install it, or run `npm install homebridge-eufy-nvr-gateway` in the Homebridge terminal.
+
+**From a file:** download `homebridge-eufy-nvr-gateway-<version>.tgz` from the
 [releases](https://github.com/dbanky/homebridge-eufy-nvr-gateway/releases), or build it yourself:
 
 ```sh

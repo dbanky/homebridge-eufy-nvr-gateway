@@ -1,0 +1,60 @@
+# Publishes the plugin to npm when a GitHub release is published (or by hand, for an existing
+# release tag). The tag must match package.json's version (v0.1.0 <-> 0.1.0); pre-releases
+# (versions with a "-", e.g. 0.2.0-beta.1) go to the "next" dist-tag instead of "latest".
+#
+# Authentication, either of:
+#   - npm trusted publishing (no secret): on npmjs.com, package settings -> Trusted publishing ->
+#     GitHub Actions, repository dbanky/homebridge-eufy-nvr-gateway, workflow publish.yml.
+#     npm only offers this once the package exists, so the first version needs the token below.
+#   - secret NPM_TOKEN: an npm access token that may publish this package.
+# Either way the package gets npm provenance (a signed link to this repository and build).
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, e.g. v0.1.0
+        required: true
+
+permissions:
+  contents: read
+  id-token: write   # npm trusted publishing and provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-26.04
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1   # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Check that the tag matches the version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::tag $TAG does not match package.json version $version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+      # --ignore-scripts: tests and build ran above; older tags' prepublishOnly also ran upstream's lint.
+      - name: Publish
+        run: |
+          case "$VERSION" in *-*) dist_tag=next ;; *) dist_tag=latest ;; esac
+          npm publish --provenance --access public --ignore-scripts --tag "$dist_tag"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -48,7 +48,8 @@
     "README.md",
     "config.schema.json",
     "dist/**/*",
-    "package.json"
+    "package.json",
+    "!dist/**/*.test.*"
   ],
   "engines": {
     "homebridge": "^1.9.0 || ^2.0.0 || ^2.0.0-beta.26 || ^2.0.0-alpha.37",
@@ -61,8 +62,7 @@
     "watch": "npm run build && npm run plugin-ui && npm link && nodemon",
     "plugin-ui": "rsync ./src/homebridge-ui/public/index.html ./dist/homebridge-ui/public/",
     "build": "npm run clean && tsc && npm run plugin-ui",
-    "prepublishOnly": "npm run lint && npm run build && npm run plugin-ui && npm run docs && npm run docs:lint",
-    "postpublish": "npm run clean && npm ci",
+    "prepublishOnly": "npm test && npm run build",
     "clean": "shx rm -rf ./dist",
     "test": "vitest run",
     "test:watch": "vitest watch",
