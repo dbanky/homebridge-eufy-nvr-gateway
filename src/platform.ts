@@ -10,6 +10,12 @@ import http from 'node:http'
 import { APIEvent, CharacteristicEventTypes, PlatformAccessoryEvent } from 'homebridge'
 import mqtt from 'mqtt'
 
+import type { GatewayCamera } from './streamingDelegate.js'
+
+import type { Branding, GatewayDevice, GatewayStatus } from './discovery.js'
+
+import { brandingFor, codecFor } from './discovery.js'
+import { DEFAULT_KEEP_ALIVE_MS, GatewayClient, gatewayProblem } from './gateway.js'
 import { Logger } from './logger.js'
 import { StreamingDelegate } from './streamingDelegate.js'
 import { PLUGIN_NAME, PLATFORM_NAME, MqttAction, getVersion } from './settings.js'
@@ -26,6 +32,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
   private readonly motionTimers: Map<string, NodeJS.Timeout> = new Map()
   private readonly doorbellTimers: Map<string, NodeJS.Timeout> = new Map()
   private readonly mqttActions: Map<string, Map<string, Array<MqttAction>>> = new Map()
+  private gateway: GatewayClient | null = null
 
   constructor(log: Logging, config: PlatformConfig, api: API) {
     this.log = new Logger(log)
@@ -39,6 +46,9 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
         this.log.error('One of your cameras has no name configured. This camera will be skipped.')
         cameraConfig.name = `Camera ${this.cameraConfigs.size + 1}`
         error = false
+      }
+      if (cameraConfig.gatewayCamera && !this.useGateway(cameraConfig)) {
+        error = true
       }
       if (!cameraConfig.videoConfig) {
         this.log.error('The videoConfig section is missing from the config. This camera will be skipped.', cameraConfig.name)
@@ -76,6 +86,41 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
     })
 
     api.on(APIEvent.DID_FINISH_LAUNCHING, this.didFinishLaunching.bind(this))
+  }
+
+  // A camera on the eufy-nvr-gateway: its stream comes from the gateway's RTSP server unless a
+  // source is set. False (and logged) when the gateway settings can't be used.
+  private useGateway(cameraConfig: CameraConfig): boolean {
+    if (!this.gateway) {
+      const problem = gatewayProblem(this.config.gateway)
+      if (problem) {
+        this.log.error(`"gatewayCamera" is set, but ${problem}. This camera will be skipped.`, cameraConfig.name)
+        return false
+      }
+      this.gateway = new GatewayClient(this.config.gateway!)
+    }
+    const camera = cameraConfig.gatewayCamera!
+    cameraConfig.videoConfig ??= {}
+    if (!cameraConfig.videoConfig.source) {
+      cameraConfig.videoConfig.source = this.gateway.ffmpegSource(camera)
+      this.log.debug(`Stream from the gateway: ${this.gateway.rtspUrl(camera).replace(/\/\/[^@/]*@/, '//***@')}`, cameraConfig.name)
+    }
+    return true
+  }
+
+  private gatewayCamera(cameraConfig: CameraConfig): GatewayCamera | undefined {
+    if (!cameraConfig.gatewayCamera || !this.gateway) {
+      return undefined
+    }
+    return {
+      client: this.gateway,
+      options: {
+        camera: cameraConfig.gatewayCamera,
+        wakeOnStream: cameraConfig.wakeOnStream ?? true,
+        sleepWhenStreamEnds: cameraConfig.sleepWhenStreamEnds ?? false,
+        keepAliveMs: DEFAULT_KEEP_ALIVE_MS,
+      },
+    }
   }
 
   addMqttAction(topic: string, message: string, details: MqttAction): void {
@@ -121,7 +166,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
       accessory.removeService(doorbellSwitch)
     }
 
-    const delegate = new StreamingDelegate(this.log, cameraConfig, this.api, this.api.hap, accessory, this.config.videoProcessor)
+    const delegate = new StreamingDelegate(this.log, cameraConfig, this.api, this.api.hap, accessory, this.config.videoProcessor, this.gatewayCamera(cameraConfig))
 
     accessory.configureController(delegate.controller)
 
@@ -337,7 +382,63 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
     }
   }
 
+  // Report a wrong gateway URL, login or camera name at startup, not at the first live view.
+  async checkGateway(): Promise<void> {
+    if (!this.gateway) {
+      return
+    }
+    let devices: GatewayDevice[] | undefined
+    for (const cameraConfig of this.cameraConfigs.values()) {
+      if (!cameraConfig.gatewayCamera) {
+        continue
+      }
+      try {
+        const status = await this.gateway.status() as GatewayStatus
+        const camera = (status.cameras ?? []).find(c => c.name === cameraConfig.gatewayCamera)
+        if (!camera) {
+          throw new Error(`the gateway has no camera named "${cameraConfig.gatewayCamera}"`)
+        }
+        this.log.info(`Found on the gateway as "${camera.name}" (${camera.state.toLowerCase()}).`, cameraConfig.name)
+        const codec = codecFor(camera)
+        if (!cameraConfig.videoConfig!.vcodec) {
+          cameraConfig.videoConfig!.vcodec = codec.vcodec // read by every new stream
+          this.log.info(`Video codec ${codec.vcodec} (automatic): ${codec.note}`, cameraConfig.name)
+        } else if (cameraConfig.videoConfig!.vcodec === 'copy' && codec.vcodec !== 'copy') {
+          this.log.warn(`vcodec "copy": ${codecFor(camera).note.replace(/: converted to H\.264.*$/, '.')} Use libx264 if the Home app shows no picture.`, cameraConfig.name)
+        }
+        if (!(cameraConfig.manufacturer && cameraConfig.model && cameraConfig.serialNumber && cameraConfig.firmwareRevision)) {
+          devices ??= await this.gateway.devices().catch(() => [])
+          this.fillBranding(cameraConfig, brandingFor(camera, devices, status.gateway?.version))
+        }
+      } catch (error) {
+        this.log.warn(`The gateway check failed: ${(error as Error).message}. Live view can't wake this camera until that is fixed.`, cameraConfig.name)
+      }
+    }
+  }
+
+  // Branding the config leaves out comes from the gateway: eufy, the model, the serial number.
+  private fillBranding(cameraConfig: CameraConfig, branding: Branding): void {
+    const accessory = this.accessories.find(a => a.displayName === cameraConfig.name)
+    const info = accessory?.getService(this.api.hap.Service.AccessoryInformation)
+    if (!info) {
+      return
+    }
+    const { Characteristic } = this.api.hap
+    const set = [
+      [Characteristic.Manufacturer, cameraConfig.manufacturer, branding.manufacturer],
+      [Characteristic.Model, cameraConfig.model, branding.model],
+      [Characteristic.SerialNumber, cameraConfig.serialNumber, branding.serialNumber],
+      [Characteristic.FirmwareRevision, cameraConfig.firmwareRevision, branding.firmwareRevision],
+    ] as const
+    for (const [characteristic, configured, discovered] of set) {
+      if (!configured) {
+        info.setCharacteristic(characteristic, discovered)
+      }
+    }
+  }
+
   didFinishLaunching(): void {
+    void this.checkGateway()
     for (const [uuid, cameraConfig] of this.cameraConfigs) {
       const name = cameraConfig.name || `Camera ${this.cameraConfigs.size + 1}`
       const cachedAccessory = this.cachedAccessories.find((curAcc: PlatformAccessory) => curAcc.UUID === uuid)

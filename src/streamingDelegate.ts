@@ -1,6 +1,7 @@
 import type { API, AudioRecordingCodec, CameraController, CameraControllerOptions, CameraStreamingDelegate, HAP, PlatformAccessory, PrepareStreamCallback, PrepareStreamRequest, PrepareStreamResponse, SnapshotRequest, SnapshotRequestCallback, StartStreamRequest, StreamingRequest, StreamRequestCallback, VideoInfo } from 'homebridge'
 
 import { PickPortOptions, CameraConfig, ResolutionInfo, SessionInfo, VideoConfig, FRAGMENTS_LENGTH, PREBUFFER_LENGTH } from './settings.js'
+import type { GatewayCameraOptions, GatewayClient } from './gateway.js'
 import type { Logger } from './logger.js'
 
 import { Buffer } from 'node:buffer'
@@ -13,6 +14,7 @@ import { APIEvent, AudioRecordingCodecType, AudioRecordingSamplerate, AudioStrea
 import { pickPort } from 'pick-port'
 
 import { FfmpegProcess } from './ffmpeg.js'
+import { WakeKeeper } from './gateway.js'
 import { RecordingDelegate } from './recordingDelegate.js'
 
 export interface ActiveSession {
@@ -20,6 +22,12 @@ export interface ActiveSession {
   returnProcess?: FfmpegProcess
   timeout?: NodeJS.Timeout
   socket?: Socket
+}
+
+// A camera served by the eufy-nvr-gateway (see gateway.ts).
+export interface GatewayCamera {
+  client: GatewayClient
+  options: GatewayCameraOptions
 }
 
 export class StreamingDelegate implements CameraStreamingDelegate {
@@ -34,14 +42,20 @@ export class StreamingDelegate implements CameraStreamingDelegate {
   private recording: boolean
   private prebuffer: boolean
   recordingDelegate: RecordingDelegate | null = null
+  private readonly gateway?: GatewayCamera
+  readonly wakeKeeper?: WakeKeeper
 
   // keep track of sessions
   pendingSessions: Map<string, SessionInfo> = new Map()
   ongoingSessions: Map<string, ActiveSession> = new Map()
   timeouts: Map<string, NodeJS.Timeout> = new Map()
 
-  constructor(log: Logger, cameraConfig: CameraConfig, api: API, hap: HAP, accessory: PlatformAccessory, videoProcessor?: string) {
+  constructor(log: Logger, cameraConfig: CameraConfig, api: API, hap: HAP, accessory: PlatformAccessory, videoProcessor?: string, gateway?: GatewayCamera) {
     this.log = log
+    this.gateway = gateway
+    if (gateway) {
+      this.wakeKeeper = new WakeKeeper(gateway.client, gateway.options, log, cameraConfig.name!)
+    }
     this.hap = hap
     this.api = api
 
@@ -55,9 +69,10 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     this.log.debug(this.prebuffer ? 'Prebuffering on' : 'prebuffering off')
 
     api.on(APIEvent.SHUTDOWN, () => {
-      for (const session in this.ongoingSessions) {
+      for (const session of [...this.ongoingSessions.keys()]) {
         this.stopStream(session)
       }
+      this.wakeKeeper?.shutdown()
     })
 
     const recordingCodecs: AudioRecordingCodec[] = []
@@ -176,7 +191,17 @@ export class StreamingDelegate implements CameraStreamingDelegate {
       filters.splice(noneFilter, 1)
     }
     resInfo.snapFilter = filters.join(',')
-    if ((noneFilter < 0) && (resInfo.width > 0 || resInfo.height > 0)) {
+    if (!isSnapshot && this.gateway && noneFilter < 0 && resInfo.width > 0 && resInfo.height > 0) {
+      // The gateway's picture changes size when the camera wakes (sleeping picture -> live video,
+      // and some cameras step up from 720p within seconds). FFmpeg keeps the encoder at the size of
+      // the first frame, so the stream would stay at whatever size it started with and squeeze any
+      // other aspect ratio into it. Instead every frame is fitted into the size HomeKit asked for,
+      // with bars where the aspect ratio differs.
+      const width = resInfo.width - (resInfo.width % 2)
+      const height = resInfo.height - (resInfo.height % 2)
+      resInfo.resizeFilter = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1`
+      filters.push(resInfo.resizeFilter)
+    } else if ((noneFilter < 0) && (resInfo.width > 0 || resInfo.height > 0)) {
       resInfo.resizeFilter = `scale=${resInfo.width > 0 ? `'min(${resInfo.width},iw)'` : 'iw'}:${resInfo.height > 0 ? `'min(${resInfo.height},ih)'` : 'ih'
       }:force_original_aspect_ratio=decrease`
       filters.push(resInfo.resizeFilter)
@@ -191,6 +216,9 @@ export class StreamingDelegate implements CameraStreamingDelegate {
   }
 
   fetchSnapshot(snapFilter?: string): Promise<Buffer> {
+    if (this.gateway && !this.videoConfig.stillImageSource) {
+      return this.fetchGatewaySnapshot()
+    }
     this.snapshotPromise = new Promise((resolve, reject) => {
       const startTime = Date.now()
       const ffmpegArgs = `${this.videoConfig.stillImageSource || this.videoConfig.source! // Still
@@ -241,6 +269,23 @@ export class StreamingDelegate implements CameraStreamingDelegate {
         }
       })
     })
+    return this.snapshotPromise
+  }
+
+  // The gateway's picture of the camera: the last frame while asleep, the live one while awake.
+  // Never wakes the camera.
+  private fetchGatewaySnapshot(): Promise<Buffer> {
+    const { client, options } = this.gateway!
+    const startTime = Date.now()
+    this.snapshotPromise = client.snapshot(options.camera)
+    this.snapshotPromise.then(() => {
+      this.log.debug(`Fetching snapshot from the gateway took ${(Date.now() - startTime) / 1000} seconds.`, this.cameraName, this.videoConfig.debug)
+    }, () => {})
+    this.snapshotPromise.finally(() => {
+      setTimeout(() => {
+        this.snapshotPromise = undefined
+      }, 3 * 1000) // Expire cached snapshot after 3 seconds
+    }).catch(() => {})
     return this.snapshotPromise
   }
 
@@ -342,6 +387,10 @@ export class StreamingDelegate implements CameraStreamingDelegate {
   private startStream(request: StartStreamRequest, callback: StreamRequestCallback): void {
     const sessionInfo = this.pendingSessions.get(request.sessionID)
     if (sessionInfo) {
+      // Wake the camera, but don't wait for it: until it is live the gateway streams its
+      // "Waking up" picture, so HomeKit gets video at once.
+      void this.wakeKeeper?.streamStarted(request.sessionID)
+
       const vcodec = this.videoConfig.vcodec || 'libx264'
       const mtu = this.videoConfig.packetSize || 1316 // request.video.mtu is not used
       let encoderOptions = this.videoConfig.encoderOptions
@@ -535,6 +584,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
       }
     }
     this.ongoingSessions.delete(sessionId)
+    void this.wakeKeeper?.streamEnded(sessionId)
     this.log.info('Stopped video stream.', this.cameraName)
   }
 }

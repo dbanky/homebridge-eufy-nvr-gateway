@@ -1,17 +1,59 @@
 {
-  "pluginAlias": "Camera-ffmpeg",
+  "pluginAlias": "EufyNvrGateway",
   "pluginType": "platform",
   "singular": true,
   "customUi": true,
   "customUiPath": "./dist/homebridge-ui",
-  "headerDisplay": "Homebridge Plugin Providing FFmpeg-based Camera Support.",
-  "footerDisplay": "You can see configurations that have been shared by other users on [the project site](https://homebridge-plugins.github.io/homebridge-camera-ffmpeg/configs/).",
+  "headerDisplay": "FFmpeg cameras for HomeKit, with wake-on-view for battery eufy cameras behind the [eufy-nvr-gateway](https://github.com/dbanky/eufy-nvr-gateway).",
+  "footerDisplay": "Based on Homebridge Camera FFmpeg. Shared configurations for ordinary cameras: [the project site](https://homebridge-plugins.github.io/homebridge-camera-ffmpeg/configs/).",
   "schema": {
     "name": {
       "title": "Name",
       "type": "string",
       "placeholder": "Camera Name",
       "default": "Camera FFmpeg"
+    },
+    "gateway": {
+      "title": "eufy NVR Gateway",
+      "type": "object",
+      "properties": {
+        "url": {
+          "title": "Gateway URL",
+          "type": "string",
+          "placeholder": "http://192.168.1.10:8099",
+          "description": "The gateway's web page. Needed for cameras that have a Gateway Camera Name."
+        },
+        "username": {
+          "title": "Web Login: Username",
+          "type": "string",
+          "description": "Only if the gateway's web page has a login (\"web\" in its config.json)."
+        },
+        "password": {
+          "title": "Web Login: Password",
+          "type": "string",
+          "x-schema-form": {
+            "type": "password"
+          }
+        },
+        "rtspPort": {
+          "title": "RTSP Port",
+          "type": "integer",
+          "placeholder": 8554,
+          "description": "The gateway's RTSP port (\"ports.rtsp\" in its config.json)."
+        },
+        "rtspUsername": {
+          "title": "Stream Login: Username",
+          "type": "string",
+          "description": "Only if the gateway's streams have a login (\"rtsp\" in its config.json)."
+        },
+        "rtspPassword": {
+          "title": "Stream Login: Password",
+          "type": "string",
+          "x-schema-form": {
+            "type": "password"
+          }
+        }
+      }
     },
     "videoProcessor": {
       "title": "Video Processor",
@@ -68,6 +110,24 @@
             "type": "string",
             "required": true,
             "description": "Set the camera name for display in the Home app."
+          },
+          "gatewayCamera": {
+            "title": "Gateway Camera Name",
+            "type": "string",
+            "placeholder": "garden",
+            "description": "The camera's \"name\" in the eufy-nvr-gateway's config.json. When set, the stream comes from the gateway (Video Source can stay empty), snapshots come from the gateway, and the camera is woken while HomeKit shows its live view."
+          },
+          "wakeOnStream": {
+            "title": "Wake the Camera for Live View",
+            "type": "boolean",
+            "default": true,
+            "description": "Wake the camera while the Home app shows its live view. Off: HomeKit shows the gateway's sleeping picture until something else wakes the camera."
+          },
+          "sleepWhenStreamEnds": {
+            "title": "Sleep as Soon as Live View Closes",
+            "type": "boolean",
+            "default": false,
+            "description": "Let the camera sleep the moment the last Home app viewer leaves, if HomeKit was what woke it. Off: it sleeps when the gateway's hold time ends (30 s by default), which keeps a recording NVR's motion session intact."
           },
           "manufacturer": {
             "name": "Manufacturer",
@@ -127,8 +187,7 @@
                 "title": "Video Source",
                 "type": "string",
                 "placeholder": "-i rtsp://username:password@example.com:554",
-                "required": true,
-                "description": "FFmpeg options on where to find and how to decode your camera's video stream. The most basic form is '-i' followed by your camera's URL."
+                "description": "FFmpeg options on where to find and how to decode your camera's video stream. The most basic form is '-i' followed by your camera's URL. Leave empty for a gateway camera: it then streams from the gateway's RTSP server."
               },
               "stillImageSource": {
                 "title": "Still Image Source",
@@ -307,6 +366,20 @@
   "layout": [
     {
       "type": "section",
+      "title": "eufy NVR Gateway",
+      "expandable": true,
+      "expanded": true,
+      "items": [
+        "gateway.url",
+        "gateway.username",
+        "gateway.password",
+        "gateway.rtspPort",
+        "gateway.rtspUsername",
+        "gateway.rtspPassword"
+      ]
+    },
+    {
+      "type": "section",
       "title": "Cameras",
       "expandable": true,
       "expanded": true,
@@ -322,6 +395,9 @@
           "orderable": true,
           "items": [
             "cameras[].name",
+            "cameras[].gatewayCamera",
+            "cameras[].wakeOnStream",
+            "cameras[].sleepWhenStreamEnds",
             "cameras[].videoConfig.source",
             "cameras[].videoConfig.stillImageSource",
             "cameras[].videoConfig.audio",

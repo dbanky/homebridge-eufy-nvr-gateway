@@ -1,3 +1,156 @@
+# Homebridge eufy NVR Gateway
+
+A special version of [Homebridge Camera FFmpeg](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg)
+for battery eufy cameras behind the [eufy-nvr-gateway](https://github.com/dbanky/eufy-nvr-gateway).
+
+> [!IMPORTANT]
+> **This plugin needs the [eufy-nvr-gateway](https://github.com/dbanky/eufy-nvr-gateway), which you
+> run separately.** The plugin doesn't talk to eufy at all: the gateway logs in to your eufy account,
+> keeps each camera's stream and wakes the cameras, and the plugin only brings its streams to HomeKit.
+> Without a running gateway, the plugin has no cameras to show.
+>
+> Set up the gateway first (it is a Docker container, e.g. on a NAS; see its
+> [setup in five steps](https://github.com/dbanky/eufy-nvr-gateway#setup-in-five-steps)), make sure
+> its web page shows your cameras, then install this plugin and enter the gateway's IP address on its
+> settings page.
+>
+> eufy allows one login per account at a time: if you also keep homebridge-eufy (or the eufy app on
+> another device) logged in with the gateway's account, they log each other out. Give the gateway an
+> account of its own, with the cameras shared to it
+> ([how](https://github.com/dbanky/eufy-nvr-gateway#the-eufy-account-and-its-two-factor-login)).
+
+The gateway gives every camera an always-on RTSP stream without keeping it awake: while the camera
+sleeps, the stream shows its last picture. Watching that stream does not wake the camera, so plain
+Camera FFmpeg would only ever show the sleeping picture in the Home app. This version does what
+homebridge-eufy does:
+
+- **Live view wakes the camera.** When the Home app opens a camera, the plugin asks the gateway to
+  wake it. The stream starts at once with the gateway's *Waking up* picture and switches to live
+  video when the camera is awake (usually a few seconds).
+- **It stays awake while you watch.** While at least one Home app viewer is open, the plugin repeats
+  the wake-up every 10 seconds, so the gateway's hold time never runs out.
+- **It sleeps when you're done.** After the last viewer leaves, the camera sleeps when the gateway's
+  hold time ends (30 s by default), or at once with `sleepWhenStreamEnds`.
+- **Snapshots never wake it.** Tiles in the Home app show the gateway's snapshot: the last picture
+  while asleep, the live picture while awake.
+
+Cameras without `gatewayCamera` work exactly as in Camera FFmpeg.
+
+## Setup page
+
+In the Homebridge UI, open the plugin's settings and enter the gateway's IP address. The page finds
+the gateway's cameras by itself; there is nothing else to type unless the gateway has logins:
+
+- **Gateway web page login**: only if the gateway's page asks for one. The page opens it when needed.
+- **Stream login**: shown only when the gateway's streams need one.
+
+For each camera the page shows its name and video source (both follow from the gateway and can't be
+changed) and fills in the branding (eufy, the model from the eufy account, the serial number, the
+gateway's version). You choose:
+
+- **Add to HomeKit**: on for every camera at the first setup; cameras the gateway gets later start off.
+- **Sound**: on when the gateway's stream for that camera has sound (`"audio": true` on the gateway).
+- **Sleep as soon as live view closes**: see `sleepWhenStreamEnds` below.
+- **Experimental – WIP → Video codec**: *Automatic* by default, which uses `copy` (no conversion,
+  almost no CPU) whenever the gateway's stream is H.264, and converts with `libx264` when it is H.265
+  or not known yet. It is picked again at every Homebridge start, so it follows the gateway once that
+  has learned a camera's format. Choosing `copy` or `libx264` fixes it.
+
+Press *Save* to store it. Cameras set up by hand in the JSON config (without `gatewayCamera`) are
+kept as they are.
+
+## Configuration
+
+What the setup page writes, for reference or for editing the JSON config by hand:
+
+```json
+{
+  "platform": "EufyNvrGateway",
+  "gateway": {
+    "url": "http://192.168.1.10:8099"
+  },
+  "cameras": [
+    { "name": "front-door", "gatewayCamera": "front-door", "videoConfig": { "audio": true } },
+    { "name": "garden", "gatewayCamera": "garden" }
+  ]
+}
+```
+
+Platform settings, under `gateway`:
+
+- `url`: _(Required for gateway cameras)_ The gateway's web page, e.g. `http://192.168.1.10:8099`.
+- `username`, `password`: The web page's login, if the gateway has one (`"web"` in its config.json).
+- `rtspPort`: The gateway's RTSP port, if not `8554`.
+- `rtspUsername`, `rtspPassword`: The streams' login, if the gateway has one (`"rtsp"` in its config.json).
+
+Camera settings:
+
+- `gatewayCamera`: The camera's `name` in the gateway's config.json. With it, `videoConfig.source`
+  can be left out: the camera streams from `rtsp://<gateway>:8554/<gatewayCamera>` over TCP.
+- `wakeOnStream`: Wake the camera for live view (default `true`).
+- `videoConfig.vcodec`: Left out, it is picked at every start from the gateway (`copy` for an H.264
+  stream, `libx264` otherwise). `copy` sends the gateway's picture at its own size and bitrate.
+- Branding (`manufacturer`, `model`, `serialNumber`, `firmwareRevision`): left out, it is filled in
+  from the gateway at startup.
+- `sleepWhenStreamEnds`: Let the camera sleep the moment the last viewer leaves, if HomeKit was what
+  woke it (default `false`). Off, it sleeps when the gateway's hold time ends; that leaves a session
+  started by motion alone, so an NVR recording the same camera keeps its recording.
+
+All other Camera FFmpeg settings work as usual. Notes for gateway cameras:
+
+- HomeKit only plays H.264, while the gateway may pass a camera's own H.265 through: such cameras
+  need `libx264`, which *Automatic* picks for them.
+- The picture changes size when a camera wakes (the sleeping picture, then the live video, which some
+  cameras start at 720p). With `libx264` the plugin fits every frame into the size HomeKit asked for,
+  with black bars where the camera's aspect ratio differs; without that, FFmpeg would keep the size
+  of the first frame for the whole stream. `copy` passes the size changes on as they are, which is
+  safe with `"transcode": true` on the gateway (one fixed size).
+- `audio: true` needs `"audio": true` for the camera on the gateway too.
+- A camera's battery pays for every live view: each one wakes it, even below the gateway's
+  `minBatteryPct`, just like the wake button on the gateway's web page.
+
+## Installation
+
+**Before you start:** the [eufy-nvr-gateway](https://github.com/dbanky/eufy-nvr-gateway) must be
+running and reachable from the Homebridge host (its web page on port `8099`, its streams on `8554`),
+with your cameras in its `config.json`. This plugin depends on it and does not install it.
+
+The plugin is not on npm. Download `homebridge-eufy-nvr-gateway-<version>.tgz` from the
+[releases](https://github.com/dbanky/homebridge-eufy-nvr-gateway/releases), or build it yourself:
+
+```sh
+npm ci && npm run build && npm pack      # makes homebridge-eufy-nvr-gateway-<version>.tgz
+```
+
+Copy the `.tgz` to the Homebridge host (for the Homebridge Docker image: into its `/homebridge`
+folder) and install it from the Homebridge terminal:
+
+```sh
+npm install --save /homebridge/homebridge-eufy-nvr-gateway-0.1.0.tgz
+```
+
+Then restart Homebridge and add the platform `EufyNvrGateway` (the plugin's settings page in the
+Homebridge UI shows all options). It can run next to Camera FFmpeg; move a camera over by deleting it
+there and adding it here. Its accessories are published like Camera FFmpeg's: add each camera in the
+Home app with the Homebridge setup code.
+
+## Development
+
+```sh
+npm ci
+npm test          # vitest
+npm run build     # tsc into dist/
+```
+
+The gateway integration is in `src/gateway.ts` (the gateway's HTTP API and the per-camera wake keeper);
+`src/streamingDelegate.ts` calls it on stream start and stop and for snapshots, and `src/platform.ts`
+derives each gateway camera's source.
+
+---
+
+The rest of this README is Camera FFmpeg's own documentation. Read `Camera-ffmpeg` there as
+`EufyNvrGateway`.
+
 # Homebridge Camera FFmpeg
 
 [![npm](https://badgen.net/npm/v/@homebridge-plugins/homebridge-camera-ffmpeg) ![npm](https://badgen.net/npm/dt/@homebridge-plugins/homebridge-camera-ffmpeg)](https://www.npmjs.com/package/@homebridge-plugins/homebridge-camera-ffmpeg) [![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins) [![certified-hoobs-plugin](https://badgen.net/badge/HOOBS/certified/yellow)](https://plugins.hoobs.org/plugin/homebridge-camera-ffmpeg)

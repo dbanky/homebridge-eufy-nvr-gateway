@@ -43,3 +43,5 @@ dist
 *.DS_Store
 /tmp/*
 *.code-workspace
+# Packages made by npm pack (attached to GitHub releases)
+*.tgz

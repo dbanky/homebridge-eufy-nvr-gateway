@@ -1,9 +1,9 @@
 {
-  "name": "@homebridge-plugins/homebridge-camera-ffmpeg",
-  "displayName": "Homebridge Camera FFmpeg",
+  "name": "homebridge-eufy-nvr-gateway",
+  "displayName": "Homebridge eufy NVR Gateway",
   "type": "module",
-  "version": "4.1.0",
-  "description": "Homebridge Plugin Providing FFmpeg-based Camera Support",
+  "version": "0.1.0",
+  "description": "Homebridge Camera FFmpeg, extended to wake battery eufy cameras behind the eufy-nvr-gateway while HomeKit watches them.",
   "author": {
     "name": "Khaos Tian"
   },
@@ -19,41 +19,27 @@
     "access": "public"
   },
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dbanky/homebridge-eufy-nvr-gateway.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dbanky/homebridge-eufy-nvr-gateway/issues"
+  },
+  "homepage": "https://github.com/dbanky/homebridge-eufy-nvr-gateway#readme",
   "maintainers": [
     {
       "name": "Homebridge"
     }
   ],
-  "funding": [
-    {
-      "type": "kofi",
-      "url": "https://ko-fi.com/sunookitsune"
-    },
-    {
-      "type": "paypal",
-      "url": "https://paypal.me/sunoo"
-    },
-    {
-      "type": "github",
-      "url": "https://github.com/Sunoo"
-    },
-    {
-      "type": "liberapay",
-      "url": "https://liberapay.com/Sunoo"
-    }
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/homebridge-plugins/homebridge-camera-ffmpeg.git"
-  },
-  "bugs": {
-    "url": "http://github.com/homebridge-plugins/homebridge-camera-ffmpeg/issues"
-  },
   "keywords": [
     "homebridge-plugin",
     "camera",
     "ffmpeg",
-    "homebridge"
+    "homebridge",
+    "eufy",
+    "battery",
+    "eufy-nvr-gateway"
   ],
   "main": "dist/index.js",
   "files": [

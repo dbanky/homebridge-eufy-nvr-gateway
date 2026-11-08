@@ -4,10 +4,11 @@ import type { Server, Socket } from 'net';
 import { defaultFfmpegPath } from '@homebridge/camera-utils'
 import { readFileSync } from 'fs';
 import { Type } from 'pick-port';
+import type { GatewayConfig } from './gateway.js';
 
-export const PLUGIN_NAME = '@homebridge-plugins/homebridge-camera-ffmpeg';
+export const PLUGIN_NAME = 'homebridge-eufy-nvr-gateway';
 
-export const PLATFORM_NAME = 'Camera-ffmpeg';
+export const PLATFORM_NAME = 'EufyNvrGateway';
 
 export const ffmpegPathString = defaultFfmpegPath as unknown as string
 
@@ -37,6 +38,7 @@ export interface FfmpegPlatformConfig {
   passmqtt?: string
   porthttp?: number
   localhttp?: boolean
+  gateway?: GatewayConfig
   cameras?: Array<CameraConfig>
 }
 
@@ -52,6 +54,9 @@ export interface CameraConfig {
   motionTimeout?: number
   motionDoorbell?: boolean
   mqtt?: MqttCameraConfig
+  gatewayCamera?: string // the camera's "name" in the eufy-nvr-gateway's config.json
+  wakeOnStream?: boolean // wake the camera while HomeKit streams it (default true)
+  sleepWhenStreamEnds?: boolean // let it sleep as soon as the last HomeKit viewer leaves (default false)
   videoConfig?: VideoConfig
 }
 
