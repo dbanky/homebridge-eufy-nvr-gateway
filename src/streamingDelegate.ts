@@ -28,7 +28,11 @@ export interface ActiveSession {
 export interface GatewayCamera {
   client: GatewayClient
   options: GatewayCameraOptions
+  // What the gateway streams, as its status said at startup (only for the log: nothing is probed).
+  stream?: { resolution?: string, codec?: string | null }
 }
+
+const CODEC_NAMES: Record<string, string> = { h264: 'H.264', hevc: 'H.265' }
 
 export class StreamingDelegate implements CameraStreamingDelegate {
   private readonly hap: HAP
@@ -418,8 +422,9 @@ export class StreamingDelegate implements CameraStreamingDelegate {
       }
 
       this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.cameraName, this.videoConfig.debug)
-      this.log.info(`Starting video stream: ${resolution.width > 0 ? resolution.width : 'native'} x ${resolution.height > 0 ? resolution.height : 'native'}, ${fps > 0 ? fps : 'native'
-      } fps, ${videoBitrate > 0 ? videoBitrate : '???'} kbps${this.videoConfig.audio ? (` (${request.audio.codec})`) : ''}`, this.cameraName)
+      this.log.info(`Starting video stream: ${this.describeVideo(vcodec, resolution, fps, videoBitrate)}${this.videoConfig.audio
+        ? `, sound ${request.audio.codec === AudioStreamingCodecType.OPUS ? 'Opus' : 'AAC-ELD'}`
+        : ''}`, this.cameraName)
 
       let ffmpegArgs = this.videoConfig.source!
 
@@ -543,6 +548,21 @@ export class StreamingDelegate implements CameraStreamingDelegate {
       this.log.error('Error finding session information.', this.cameraName)
       callback(new Error('Error finding session information'))
     }
+  }
+
+  // The video of a stream for the log, from what is already known: the conversion's settings, or
+  // with "copy" what the gateway said about the stream at startup. Nothing is probed for it.
+  private describeVideo(vcodec: string, resolution: ResolutionInfo, fps: number, bitrate: number): string {
+    if (vcodec === 'copy') {
+      const stream = this.gateway?.stream
+      const size = stream?.resolution ? `${stream.resolution.replace('x', ' x ')} ` : ''
+      const codec = stream?.codec ? CODEC_NAMES[stream.codec] ?? stream.codec : null
+      return stream
+        ? `${size}${codec ?? 'video'} from the gateway, passed through (no conversion)`
+        : 'the source\'s video, passed through (no conversion)'
+    }
+    const size = resolution.width > 0 && resolution.height > 0 ? `${resolution.width} x ${resolution.height}` : 'source size'
+    return [`${size}, converted to H.264 (${vcodec})`, fps > 0 ? `${fps} fps` : null, bitrate > 0 ? `${bitrate} kbps` : null].filter(Boolean).join(', ')
   }
 
   handleStreamRequest(request: StreamingRequest, callback: StreamRequestCallback): void {

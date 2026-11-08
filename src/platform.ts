@@ -105,11 +105,17 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
     return true
   }
 
+  private readonly gatewayCameras = new Map<string, GatewayCamera>()   // by HomeKit name
+
   private gatewayCamera(cameraConfig: CameraConfig): GatewayCamera | undefined {
     if (!cameraConfig.gatewayCamera || !this.gateway) {
       return undefined
     }
-    return {
+    const known = this.gatewayCameras.get(cameraConfig.name!)
+    if (known) {
+      return known
+    }
+    const camera: GatewayCamera = {
       client: this.gateway,
       options: {
         camera: cameraConfig.gatewayCamera,
@@ -118,6 +124,8 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
         keepAliveMs: DEFAULT_KEEP_ALIVE_MS,
       },
     }
+    this.gatewayCameras.set(cameraConfig.name!, camera)
+    return camera
   }
 
   addMqttAction(topic: string, message: string, details: MqttAction): void {
@@ -396,6 +404,11 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
           throw new Error(`the gateway has no camera named "${cameraConfig.gatewayCamera}"`)
         }
         this.log.info(`Found on the gateway as "${camera.name}" (${camera.state.toLowerCase()}).`, cameraConfig.name)
+        // For the stream log: what the gateway streams (no probing per stream).
+        const known = this.gatewayCamera(cameraConfig)
+        if (known) {
+          known.stream = { resolution: camera.resolution, codec: camera.video?.codec }
+        }
         const codec = codecFor(camera)
         if (!cameraConfig.videoConfig!.vcodec) {
           cameraConfig.videoConfig!.vcodec = codec.vcodec // read by every new stream

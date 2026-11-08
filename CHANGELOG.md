@@ -4,6 +4,16 @@ All notable changes to this project. Versions follow [Semantic Versioning](https
 This plugin is based on [Homebridge Camera FFmpeg](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg)
 4.1.0; its own history is in [its changelog](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/blob/latest/CHANGELOG.md).
 
+## [0.3.2] - 2026-11-08
+
+### Fixed
+
+- **The log says what a stream really is.** With the video passed through (`copy`), it said
+  "native x native, native fps, ??? kbps". It now names the gateway's stream, e.g.
+  "2048 x 1536 H.264 from the gateway, passed through (no conversion), sound AAC-ELD", from what
+  the gateway reported at startup: nothing extra is probed or asked for each stream. Converted
+  streams give their size, frame rate and bitrate.
+
 ## [0.3.1] - 2026-11-08
 
 ### Fixed

@@ -144,3 +144,19 @@ describe('sleeping as soon as live view closes', () => {
     expect(platform.gatewayCamera(cameraConfigs(platform).get('uuid-Porch')).options.sleepWhenStreamEnds).toBe(false)
   })
 })
+
+describe('the stream info for the log', () => {
+  it('comes from the startup check, so streams never probe for it', async () => {
+    const config = {
+      platform: 'EufyNvrGateway',
+      gateway: { url: 'http://192.168.1.10:8099' },
+      cameras: [{ name: 'Garden', gatewayCamera: 'garden', manufacturer: 'eufy', model: 'm', serialNumber: 's', firmwareRevision: '1', videoConfig: { vcodec: 'copy' } }],
+    } as unknown as PlatformConfig
+    const platform = new FfmpegPlatform(logging(), config, api) as any
+    const camera = platform.gatewayCamera(cameraConfigs(platform).get('uuid-Garden'))
+    platform.gateway.status = vi.fn(async () => ({ cameras: [{ name: 'garden', serial: 's', state: 'IDLE', resolution: '2880x1616', video: { codec: 'hevc' } }] }))
+    await platform.checkGateway()
+    expect(camera.stream).toEqual({ resolution: '2880x1616', codec: 'hevc' })
+    expect(platform.gatewayCamera(cameraConfigs(platform).get('uuid-Garden'))).toBe(camera) // the delegate's object
+  })
+})

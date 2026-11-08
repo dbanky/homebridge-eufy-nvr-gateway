@@ -140,3 +140,27 @@ describe('streamingDelegate with a gateway camera', () => {
     expect(gateway.client.snapshot).not.toHaveBeenCalled()
   })
 })
+
+describe('the stream\'s log line', () => {
+  const started = () => log.info.mock.calls.map((c: unknown[]) => String(c[0])).filter((m: string) => m.startsWith('Starting video stream')).at(-1)
+
+  it('with "copy", says what the gateway streams, from what it reported at startup', () => {
+    const gateway = { ...gatewayCamera(), stream: { resolution: '2048x1536', codec: 'h264' } }
+    const copy = { ...config(), videoConfig: { ...config().videoConfig, vcodec: 'copy', audio: true } }
+    const delegate = new StreamingDelegate(log, copy, api, hap, {} as PlatformAccessory, undefined, gateway)
+    delegate.pendingSessions.set('s1', sessionInfo)
+    delegate.handleStreamRequest(startRequest('s1'), vi.fn())
+    expect(started()).toBe('Starting video stream: 2048 x 1536 H.264 from the gateway, passed through (no conversion), sound AAC-ELD')
+    expect(gateway.client.state).not.toHaveBeenCalled() // nothing is asked for the log
+    delegate.wakeKeeper!.shutdown()
+  })
+
+  it('when converting, gives the size, frame rate and bitrate, and never "???"', () => {
+    const delegate = new StreamingDelegate(log, config(), api, hap, {} as PlatformAccessory, undefined, gatewayCamera())
+    delegate.pendingSessions.set('s1', sessionInfo)
+    delegate.handleStreamRequest(startRequest('s1'), vi.fn())
+    expect(started()).toBe('Starting video stream: 1920 x 1080, converted to H.264 (libx264), 30 fps, 2000 kbps')
+    expect(started()).not.toMatch(/\?\?\?|native/)
+    delegate.wakeKeeper!.shutdown()
+  })
+})
