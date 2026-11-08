@@ -2,12 +2,10 @@
 # release tag). The tag must match package.json's version (v0.1.0 <-> 0.1.0); pre-releases
 # (versions with a "-", e.g. 0.2.0-beta.1) go to the "next" dist-tag instead of "latest".
 #
-# Authentication, either of:
-#   - npm trusted publishing (no secret): on npmjs.com, package settings -> Trusted publishing ->
-#     GitHub Actions, repository dbanky/homebridge-eufy-nvr-gateway, workflow publish.yml.
-#     npm only offers this once the package exists, so the first version needs the token below.
-#   - secret NPM_TOKEN: an npm access token that may publish this package.
-# Either way the package gets npm provenance (a signed link to this repository and build).
+# Authentication: npm trusted publishing, no token or secret. npmjs.com trusts this workflow
+# (package settings -> Trusted publishing: GitHub Actions, repository dbanky/homebridge-eufy-nvr-gateway,
+# workflow publish.yml, no environment, direct "npm publish" allowed) and npm signs provenance
+# (a link to this repository and build) for every version.
 name: Publish to npm
 
 on:
@@ -56,5 +54,3 @@ jobs:
         run: |
           case "$VERSION" in *-*) dist_tag=next ;; *) dist_tag=latest ;; esac
           npm publish --provenance --access public --ignore-scripts --tag "$dist_tag"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
