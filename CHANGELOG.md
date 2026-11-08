@@ -4,6 +4,14 @@ All notable changes to this project. Versions follow [Semantic Versioning](https
 This plugin is based on [Homebridge Camera FFmpeg](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg)
 4.1.0; its own history is in [its changelog](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/blob/latest/CHANGELOG.md).
 
+## [0.3.1] - 2026-11-08
+
+### Fixed
+
+- **The camera settings showed under every tab** of the plugin's settings (Devices and Support
+  too), because the page closed its Settings section too early. Each tab now shows only its own
+  content: Devices just the list of cameras.
+
 ## [0.3.0] - 2026-11-08
 
 ### Changed

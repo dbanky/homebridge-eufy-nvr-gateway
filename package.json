@@ -2,7 +2,7 @@
   "name": "homebridge-eufy-nvr-gateway",
   "displayName": "Homebridge eufy NVR Gateway",
   "type": "module",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Homebridge Camera FFmpeg, extended to wake battery eufy cameras behind the eufy-nvr-gateway while HomeKit watches them.",
   "author": {
     "name": "Khaos Tian"
