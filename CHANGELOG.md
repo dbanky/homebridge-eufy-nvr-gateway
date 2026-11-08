@@ -4,6 +4,21 @@ All notable changes to this project. Versions follow [Semantic Versioning](https
 This plugin is based on [Homebridge Camera FFmpeg](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg)
 4.1.0; its own history is in [its changelog](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/blob/latest/CHANGELOG.md).
 
+## [0.2.0] - 2026-11-08
+
+### Changed
+
+- **Homebridge uses the gateway's stream login, not its web page login.** The stream login (the
+  one your NVR uses) now also finds and wakes the cameras, so Homebridge no longer needs or stores
+  the gateway's admin login. This needs eufy NVR Gateway 0.6.0 or later; older gateways still work
+  with the web login, which the settings page asks for only then.
+- The model shown in the Home app comes with each camera from the gateway, where the gateway
+  reports it.
+- The settings page shows the eufy NVR Gateway logo, and its support page links to this plugin and
+  the gateway.
+- The README only covers what a gateway user needs; Camera FFmpeg's documentation site is gone
+  from the repository.
+
 ## [0.1.1] - 2026-11-08
 
 ### Changed

@@ -1,10 +1,19 @@
-<p class="text-center">
-  <img
-    src="https://raw.githubusercontent.com/homebridge/branding/latest/logos/homebridge-color-round.svg"
-    alt="homebridge-camera-ffmpeg logo" style="width: 25%" />
+<p class="text-center mb-1">
+  <svg role="img" aria-label="eufy NVR Gateway" style="width: 96px; height: 96px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+    <defs>
+      <linearGradient id="eufyNvrTile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6573f2"/><stop offset="1" stop-color="#3b46b5"/></linearGradient>
+      <mask id="eufyNvrLens"><rect width="64" height="64" fill="#fff"/><circle cx="25" cy="33" r="9.5" fill="#000"/></mask>
+    </defs>
+    <rect width="64" height="64" rx="16" fill="url(#eufyNvrTile)"/>
+    <rect x="8" y="20" width="34" height="26" rx="7" fill="#fff" mask="url(#eufyNvrLens)"/>
+    <path d="M44 29.5 55 23.5v19L44 36.5z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M29.6 36.6A6.3 6.3 0 0 1 21.4 28.4a6.3 6.3 0 1 0 8.2 8.2z" fill="#fff"/>
+    <circle cx="52" cy="12.5" r="4.5" fill="#ff5a5a"/>
+  </svg>
 </p>
+<p class="text-center lead mb-0"><strong>eufy NVR Gateway</strong> for HomeKit</p>
 <div id="pageIntro" style="display: none">
-  <p class="lead text-center">Thank you for installing <strong>homebridge-eufy-nvr-gateway</strong>, based on homebridge-camera-ffmpeg</p>
+  <p class="lead text-center">Thank you for installing <strong>homebridge-eufy-nvr-gateway</strong></p>
   <div class="text-center">
     <button type="button" class="btn btn-primary" id="introLink">Continue &rarr;</button>
   </div>
@@ -70,20 +79,20 @@
         <small class="form-text muted">The gateway's address, with its port if it isn't 8099 (e.g. 192.168.1.10:8099).</small>
       </div>
       <div id="gwStatus" class="alert mb-2" role="status" style="display: none"></div>
-      <details id="gwWebLogin">
-        <summary>Gateway web page login</summary>
-        <p class="muted mb-1">Only if the gateway's web page asks for a login.</p>
-        <div class="form-row">
-          <div class="form-group col-sm-6 mb-1"><input type="text" class="form-control" id="gwUsername" placeholder="Username" autocomplete="off" /></div>
-          <div class="form-group col-sm-6 mb-1"><input type="password" class="form-control" id="gwPassword" placeholder="Password" autocomplete="new-password" /></div>
-        </div>
-      </details>
       <div id="gwRtspLogin" style="display: none" class="mt-2">
         <label>Stream login</label>
-        <p class="muted mb-1">The gateway's streams need a login ("rtsp" in its config.json).</p>
+        <p class="muted mb-1">The gateway's stream login ("rtsp" in its config.json), the one your NVR uses. Homebridge plays the streams with it, and finds and wakes the cameras with it.</p>
         <div class="form-row">
           <div class="form-group col-sm-6 mb-1"><input type="text" class="form-control" id="gwRtspUsername" placeholder="Username" autocomplete="off" /></div>
           <div class="form-group col-sm-6 mb-1"><input type="password" class="form-control" id="gwRtspPassword" placeholder="Password" autocomplete="new-password" /></div>
+        </div>
+      </div>
+      <div id="gwWebLogin" style="display: none" class="mt-2">
+        <label>Web page login (gateways before 0.6.0)</label>
+        <p class="muted mb-1">Only for gateways before 0.6.0, which don't accept the stream login for finding and waking cameras: the login of the gateway's web page ("web" in its config.json). Updating the gateway makes this unnecessary.</p>
+        <div class="form-row">
+          <div class="form-group col-sm-6 mb-1"><input type="text" class="form-control" id="gwUsername" placeholder="Username" autocomplete="off" /></div>
+          <div class="form-group col-sm-6 mb-1"><input type="password" class="form-control" id="gwPassword" placeholder="Password" autocomplete="new-password" /></div>
         </div>
       </div>
     </div>
@@ -92,58 +101,20 @@
   <p id="otherCameras" class="muted" style="display: none"></p>
 </div>
 <div id="pageSupport" class="mt-4" style="display: none">
-  <p class="text-center lead">Thank you for using <strong>homebridge-eufy-nvr-gateway</strong>, based on homebridge-camera-ffmpeg</p>
-  <p class="text-center">The links below will take you to our GitHub wiki</p>
-  <h5>Setup</h5>
+  <p class="text-center lead">Thank you for using <strong>homebridge-eufy-nvr-gateway</strong></p>
+  <p class="text-center">It needs the eufy NVR Gateway, which runs separately (e.g. as a Docker container on a NAS).</p>
+  <h5>This plugin</h5>
   <ul>
-    <li>
-      <a href="https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/wiki" target="_blank">Wiki Home</a>
-    </li>
-    <li>
-      <a href="https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/wiki/Configuration"
-        target="_blank">Configuration</a>
-    </li>
-    <li>
-      <a href="https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/wiki/Beta-Version"
-        target="_blank">Beta
-        Version</a>
-    </li>
-    <li>
-      <a href="https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/wiki/Node-Version"
-        target="_blank">Node
-        Version</a>
-    </li>
-    <li>
-      <a href="https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/wiki/Uninstallation"
-        target="_blank">Uninstallation</a>
-    </li>
+    <li><a href="https://github.com/dbanky/homebridge-eufy-nvr-gateway#readme" target="_blank" rel="noopener">Setup and settings</a></li>
+    <li><a href="https://github.com/dbanky/homebridge-eufy-nvr-gateway/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></li>
+    <li><a href="https://github.com/dbanky/homebridge-eufy-nvr-gateway/issues" target="_blank" rel="noopener">Report a problem</a></li>
   </ul>
-  <h5>Features</h5>
+  <h5>The eufy NVR Gateway</h5>
   <ul>
-    <li>
-      <a href="https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/wiki/Supported-Devices"
-        target="_blank">Supported Devices</a>
-    </li>
-    <li>
-      <a href="https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/wiki/Fan-Modes" target="_blank">Fan
-        Modes</a>
-    </li>
+    <li><a href="https://github.com/dbanky/eufy-nvr-gateway#setup-in-five-steps" target="_blank" rel="noopener">Setting up the gateway</a></li>
+    <li><a href="https://github.com/dbanky/eufy-nvr-gateway#security" target="_blank" rel="noopener">Its logins (web page and streams)</a></li>
   </ul>
-  <h5>Help/About</h5>
-  <ul>
-    <li>
-      <a href="https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/issues/new/choose"
-        target="_blank">Support
-        Request</a>
-    </li>
-    <li>
-      <a href="https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/blob/latest/CHANGELOG.md"
-        target="_blank">Changelog</a>
-    </li>
-    <li>
-      <a href="https://github.com/Sunoo" target="_blank">About Me</a>
-    </li>
-  </ul>
+  <p class="muted">Based on <a href="https://github.com/homebridge-plugins/homebridge-camera-ffmpeg" target="_blank" rel="noopener">Homebridge Camera FFmpeg</a>.</p>
 </div>
 <script>
   // The settings page: everything that follows from the gateway is discovered, not typed.
@@ -192,6 +163,8 @@
         gateway.url = found.url;
         if (found.rtspPort !== 8554) gateway.rtspPort = found.rtspPort;
         if (!found.rtspLogin) { delete gateway.rtspUsername; delete gateway.rtspPassword; }
+        // The gateway's admin login is only kept when the gateway needs it (it refused the stream login).
+        if (found.apiLogin !== 'web') { delete gateway.username; delete gateway.password; }
       }
       const others = (config.cameras || []).filter((camera) => !camera.gatewayCamera);
       const gatewayCameras = found
@@ -265,7 +238,10 @@
     const render = () => {
       const list = $('cameraList');
       list.innerHTML = '';
-      $('gwRtspLogin').style.display = found && found.rtspLogin ? 'block' : 'none';
+      if (found) {
+        $('gwRtspLogin').style.display = found.rtspLogin || found.apiLogin === 'stream' ? 'block' : 'none';
+        $('gwWebLogin').style.display = found.apiLogin === 'web' ? 'block' : 'none';
+      }
       if (!found) return;
       found.cameras.forEach((camera, index) => list.append(cameraCard(camera, index)));
       const others = (config.cameras || []).filter((camera) => !camera.gatewayCamera).length;
@@ -282,17 +258,26 @@
         found = answer;
         $('gwAddress').value = answer.url.replace(/^http:\/\//, '');
         const count = answer.cameras.length;
-        status(count ? 'success' : 'warning', count
-          ? `Connected to eufy NVR Gateway ${answer.version} · ${count} camera${count === 1 ? '' : 's'}`
+        const via = answer.apiLogin === 'web' ? ' · signed in with the web page login (update the gateway to 0.6.0 or later so the stream login is enough)' : '';
+        const missing = answer.rtspLogin && !$('gwRtspUsername').value.trim() ? ' · enter the stream login below: the streams need it' : '';
+        status(count ? (missing ? 'warning' : 'success') : 'warning', count
+          ? `Connected to eufy NVR Gateway ${answer.version} · ${count} camera${count === 1 ? '' : 's'}${via}${missing}`
           : `Connected to eufy NVR Gateway ${answer.version}, but it has no cameras yet: add them to its config.json first.`);
         render();
         await store();
       } catch (error) {
         const message = (error && error.message) || String(error);
-        if (/HTTP 401/.test(message)) $('gwWebLogin').open = true;
-        status('danger', /HTTP 401/.test(message)
-          ? 'The gateway asks for a login: enter its web page login below.'
-          : `Can't reach the gateway: ${message}`);
+        if (!/HTTP 401/.test(message)) return status('danger', `Can't reach the gateway: ${message}`);
+        // The gateway wants a login: first the stream login; the web login only if that is refused.
+        const stream = !!$('gwRtspUsername').value.trim();
+        const web = !!$('gwUsername').value.trim();
+        $('gwRtspLogin').style.display = 'block';
+        if (stream) $('gwWebLogin').style.display = 'block';
+        status('danger', !stream
+          ? 'The gateway asks for a login: enter its stream login below ("rtsp" in its config.json).'
+          : !web
+            ? 'The gateway didn\'t accept the stream login. Check it; gateways before 0.6.0 accept only their web page login for this, which you can enter below.'
+            : 'The gateway accepted neither login: check both.');
       }
     };
 
@@ -313,7 +298,8 @@
           $('gwPassword').value = gateway.password || '';
           $('gwRtspUsername').value = gateway.rtspUsername || '';
           $('gwRtspPassword').value = gateway.rtspPassword || '';
-          if (gateway.username) $('gwWebLogin').open = true;
+          if (gateway.rtspUsername) $('gwRtspLogin').style.display = 'block';
+          if (gateway.username) $('gwWebLogin').style.display = 'block';
           $('gwDiscover').addEventListener('click', discover);
           $('gwAddress').addEventListener('input', later);
           $('gwAddress').addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); discover(); } });

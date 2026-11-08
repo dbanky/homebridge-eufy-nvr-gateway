@@ -69,6 +69,42 @@ describe('gatewayClient', () => {
     expect(header).toBe(`Basic ${Buffer.from('admin:sécret', 'utf8').toString('base64')}`)
   })
 
+  it('logs in with the stream login, not the web page\'s admin login', async () => {
+    const { fetchImpl, calls } = fakeFetch(() => json({ state: 'WAKING' }))
+    const client = new GatewayClient({ url: 'http://192.168.1.10:8099', username: 'admin', password: 'web', rtspUsername: 'nvr', rtspPassword: 'stream' }, fetchImpl)
+    await client.wake('garden')
+    expect(calls).toHaveLength(1)
+    expect((calls[0].init.headers as Record<string, string>).authorization).toBe(`Basic ${Buffer.from('nvr:stream').toString('base64')}`)
+    expect(client.usedLogin).toBe('stream')
+  })
+
+  it('falls back to the web login when the gateway refuses the stream login, and keeps using what worked', async () => {
+    const web = `Basic ${Buffer.from('admin:web').toString('base64')}`
+    const { fetchImpl, calls } = fakeFetch((_url, init) => ((init.headers as Record<string, string>).authorization === web ? json({ state: 'WAKING' }) : json({}, 401)))
+    const client = new GatewayClient({ url: 'http://192.168.1.10:8099', username: 'admin', password: 'web', rtspUsername: 'nvr', rtspPassword: 'stream' }, fetchImpl)
+    await client.wake('garden')
+    expect(calls).toHaveLength(2)
+    expect(client.usedLogin).toBe('web')
+    await client.wake('garden')
+    expect(calls).toHaveLength(3) // straight to the web login
+    expect((calls[2].init.headers as Record<string, string>).authorization).toBe(web)
+  })
+
+  it('tries the web login when the stream login may not do something (403), e.g. the device list', async () => {
+    const stream = `Basic ${Buffer.from('nvr:stream').toString('base64')}`
+    const { fetchImpl } = fakeFetch((_url, init) => ((init.headers as Record<string, string>).authorization === stream ? json({ error: 'use the web login' }, 403) : json([])))
+    const client = new GatewayClient({ url: 'http://192.168.1.10:8099', username: 'admin', password: 'web', rtspUsername: 'nvr', rtspPassword: 'stream' }, fetchImpl)
+    expect(await client.devices()).toEqual([])
+  })
+
+  it('sends no login when none is set', async () => {
+    const { fetchImpl, calls } = fakeFetch(() => json({ state: 'IDLE' }))
+    const client = new GatewayClient({ url: 'http://192.168.1.10:8099' }, fetchImpl)
+    await client.wake('garden')
+    expect((calls[0].init.headers as Record<string, string>).authorization).toBeUndefined()
+    expect(client.usedLogin).toBe('none')
+  })
+
   it('reads one camera\'s state from /api/status', async () => {
     const { fetchImpl } = fakeFetch(() => json({ cameras: [{ name: 'front-door', state: 'LIVE' }, { name: 'garden', state: 'IDLE' }] }))
     const client = new GatewayClient({ url: 'http://192.168.1.10:8099' }, fetchImpl)
@@ -87,7 +123,7 @@ describe('gatewayClient', () => {
   it('explains a wrong login or camera name', async () => {
     await expect(new GatewayClient({ url: 'http://192.168.1.10:8099' }, fakeFetch(() => json({}, 401)).fetchImpl).wake('garden'))
       .rejects
-      .toThrow(/HTTP 401 \(check "gateway.username"/)
+      .toThrow(/HTTP 401 \(check the stream login/)
     await expect(new GatewayClient({ url: 'http://192.168.1.10:8099' }, fakeFetch(() => json({}, 404)).fetchImpl).wake('shed'))
       .rejects
       .toThrow(/HTTP 404 \(check the camera name/)

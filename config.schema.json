@@ -4,8 +4,8 @@
   "singular": true,
   "customUi": true,
   "customUiPath": "./dist/homebridge-ui",
-  "headerDisplay": "FFmpeg cameras for HomeKit, with wake-on-view for battery eufy cameras behind the [eufy-nvr-gateway](https://github.com/dbanky/eufy-nvr-gateway).",
-  "footerDisplay": "Based on Homebridge Camera FFmpeg. Shared configurations for ordinary cameras: [the project site](https://homebridge-plugins.github.io/homebridge-camera-ffmpeg/configs/).",
+  "headerDisplay": "HomeKit live view for battery eufy cameras behind the [eufy NVR Gateway](https://github.com/dbanky/eufy-nvr-gateway), which must run separately.",
+  "footerDisplay": "Setup and settings: [README](https://github.com/dbanky/homebridge-eufy-nvr-gateway#readme).",
   "schema": {
     "name": {
       "title": "Name",
@@ -23,13 +23,13 @@
           "placeholder": "http://192.168.1.10:8099",
           "description": "The gateway's web page. Needed for cameras that have a Gateway Camera Name."
         },
-        "username": {
-          "title": "Web Login: Username",
+        "rtspUsername": {
+          "title": "Stream Login: Username",
           "type": "string",
-          "description": "Only if the gateway's web page has a login (\"web\" in its config.json)."
+          "description": "The gateway's stream login (\"rtsp\" in its config.json), the one your NVR uses. Plays the streams, and finds and wakes the cameras."
         },
-        "password": {
-          "title": "Web Login: Password",
+        "rtspPassword": {
+          "title": "Stream Login: Password",
           "type": "string",
           "x-schema-form": {
             "type": "password"
@@ -41,13 +41,13 @@
           "placeholder": 8554,
           "description": "The gateway's RTSP port (\"ports.rtsp\" in its config.json)."
         },
-        "rtspUsername": {
-          "title": "Stream Login: Username",
+        "username": {
+          "title": "Web Page Login: Username (gateways before 0.6.0)",
           "type": "string",
-          "description": "Only if the gateway's streams have a login (\"rtsp\" in its config.json)."
+          "description": "Only for gateways before 0.6.0, which don't accept the stream login for finding and waking cameras: the login of the gateway's web page (\"web\" in its config.json)."
         },
-        "rtspPassword": {
-          "title": "Stream Login: Password",
+        "password": {
+          "title": "Web Page Login: Password (gateways before 0.6.0)",
           "type": "string",
           "x-schema-form": {
             "type": "password"
@@ -371,11 +371,11 @@
       "expanded": true,
       "items": [
         "gateway.url",
-        "gateway.username",
-        "gateway.password",
-        "gateway.rtspPort",
         "gateway.rtspUsername",
-        "gateway.rtspPassword"
+        "gateway.rtspPassword",
+        "gateway.rtspPort",
+        "gateway.username",
+        "gateway.password"
       ]
     },
     {

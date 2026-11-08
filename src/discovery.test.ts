@@ -94,7 +94,7 @@ describe('discover', () => {
   it('lists the gateway\'s cameras with everything that follows from them', async () => {
     const found = await discover(
       { url: '192.168.1.10', rtspUsername: 'nvr', rtspPassword: 'secret' },
-      { status: async () => status, devices: async () => devices },
+      { status: async () => status, devices: async () => devices, usedLogin: 'stream' },
     )
     expect(found).toMatchObject({ url: 'http://192.168.1.10:8099', version: '0.5.1', rtspPort: 8554, rtspLogin: true })
     expect(found.cameras.map(c => [c.name, c.audio, c.codec.vcodec, c.branding.model])).toEqual([
@@ -105,7 +105,7 @@ describe('discover', () => {
   })
 
   it('still discovers when the device list is not available', async () => {
-    const found = await discover({ url: '192.168.1.10' }, { status: async () => status, devices: async () => Promise.reject(new Error('HTTP 500')) })
+    const found = await discover({ url: '192.168.1.10' }, { status: async () => status, devices: async () => Promise.reject(new Error('HTTP 500')), usedLogin: 'none' })
     expect(found.cameras[0].branding.model).toBe('eufy camera')
   })
 })
@@ -157,5 +157,23 @@ describe('cameraConfigFor', () => {
   it('turns sound off when the gateway\'s stream has none', () => {
     const config = cameraConfigFor(discovered({ audio: false }), { gatewayCamera: 'front-door', videoConfig: { audio: true } })
     expect(config.videoConfig!.audio).toBe(false)
+  })
+})
+
+describe('discover with a gateway that reports each camera\'s model', () => {
+  it('takes the model from the camera list and doesn\'t ask for the device list (web login only)', async () => {
+    let askedDevices = false
+    const withModels: GatewayStatus = { ...status, cameras: status.cameras!.map(c => ({ ...c, model: `${c.name} model` })) }
+    const found = await discover({ url: '192.168.1.10' }, {
+      status: async () => withModels,
+      devices: async () => {
+        askedDevices = true
+        return []
+      },
+      usedLogin: 'stream',
+    })
+    expect(askedDevices).toBe(false)
+    expect(found.apiLogin).toBe('stream')
+    expect(found.cameras[1].branding.model).toBe('garden model')
   })
 })

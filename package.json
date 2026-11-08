@@ -2,7 +2,7 @@
   "name": "homebridge-eufy-nvr-gateway",
   "displayName": "Homebridge eufy NVR Gateway",
   "type": "module",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Homebridge Camera FFmpeg, extended to wake battery eufy cameras behind the eufy-nvr-gateway while HomeKit watches them.",
   "author": {
     "name": "Khaos Tian"
@@ -66,9 +66,7 @@
     "clean": "shx rm -rf ./dist",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "test-coverage": "npm run test -- --coverage",
-    "docs": "typedoc",
-    "docs:lint": "typedoc --emit none --treatWarningsAsErrors"
+    "test-coverage": "npm run test -- --coverage"
   },
   "dependencies": {
     "@homebridge/camera-utils": "^3.0.0",
@@ -94,7 +92,6 @@
     "nodemon": "^3.1.10",
     "shx": "^0.4.0",
     "ts-node": "^10.9.2",
-    "typedoc": "^0.28.13",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }

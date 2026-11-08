@@ -2,23 +2,20 @@ import type { Buffer } from 'node:buffer'
 
 import type { API, CharacteristicSetCallback, CharacteristicValue, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig } from 'homebridge'
 
-import type { AutomationReturn } from "./settings.js"
-import type { CameraConfig, FfmpegPlatformConfig } from './settings.js'
+import type { Branding, GatewayDevice, GatewayStatus } from './discovery.js'
+import type { AutomationReturn, CameraConfig, FfmpegPlatformConfig, MqttAction } from './settings.js'
+import type { GatewayCamera } from './streamingDelegate.js'
 
 import http from 'node:http'
 
 import { APIEvent, CharacteristicEventTypes, PlatformAccessoryEvent } from 'homebridge'
 import mqtt from 'mqtt'
 
-import type { GatewayCamera } from './streamingDelegate.js'
-
-import type { Branding, GatewayDevice, GatewayStatus } from './discovery.js'
-
 import { brandingFor, codecFor } from './discovery.js'
 import { DEFAULT_KEEP_ALIVE_MS, GatewayClient, gatewayProblem } from './gateway.js'
 import { Logger } from './logger.js'
+import { getVersion, PLATFORM_NAME, PLUGIN_NAME } from './settings.js'
 import { StreamingDelegate } from './streamingDelegate.js'
-import { PLUGIN_NAME, PLATFORM_NAME, MqttAction, getVersion } from './settings.js'
 
 const version = getVersion()
 
@@ -407,7 +404,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
           this.log.warn(`vcodec "copy": ${codecFor(camera).note.replace(/: converted to H\.264.*$/, '.')} Use libx264 if the Home app shows no picture.`, cameraConfig.name)
         }
         if (!(cameraConfig.manufacturer && cameraConfig.model && cameraConfig.serialNumber && cameraConfig.firmwareRevision)) {
-          devices ??= await this.gateway.devices().catch(() => [])
+          devices ??= camera.model ? [] : await this.gateway.devices().catch(() => [])
           this.fillBranding(cameraConfig, brandingFor(camera, devices, status.gateway?.version))
         }
       } catch (error) {
@@ -485,7 +482,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
     }
     if (this.config.porthttp) {
       this.log.info(`Setting up ${this.config.localhttp ? 'localhost-only ' : ''
-        }HTTP server on port ${this.config.porthttp}...`)
+      }HTTP server on port ${this.config.porthttp}...`)
       const server = http.createServer()
       const hostname = this.config.localhttp ? 'localhost' : undefined
       server.listen(this.config.porthttp, hostname)

@@ -12,6 +12,7 @@ export const DEFAULT_WEB_PORT = 8099
 // What /api/status says about one camera (only the parts used here).
 export interface GatewayCameraStatus {
   name: string
+  model?: string | null // from the eufy account, e.g. "SoloCam S340" (newer gateways)
   serial: string
   state: string
   battery?: number | null
@@ -23,7 +24,7 @@ export interface GatewayCameraStatus {
 export interface GatewayStatus {
   rtspPort?: number
   rtsp?: { login?: boolean }
-  gateway?: { version?: string, login?: boolean }
+  gateway?: { version?: string, login?: boolean, streamLoginForApi?: boolean }
   cameras?: GatewayCameraStatus[]
 }
 
@@ -65,6 +66,7 @@ export interface Discovery {
   version: string
   rtspPort: number
   rtspLogin: boolean // the streams need a login ("rtsp" in the gateway's config.json)
+  apiLogin: 'stream' | 'web' | 'none' // the login the gateway's API took
   cameras: DiscoveredCamera[]
 }
 
@@ -94,11 +96,12 @@ export function firmwareFrom(version?: string): string {
   return match ? match.slice(1).filter(part => part !== undefined).join('.') : '1.0.0'
 }
 
-export function brandingFor(camera: Pick<GatewayCameraStatus, 'serial'>, devices: GatewayDevice[], version?: string): Branding {
+// The model comes with the camera from newer gateways; older ones only have it in /api/devices.
+export function brandingFor(camera: Pick<GatewayCameraStatus, 'serial' | 'model'>, devices: GatewayDevice[], version?: string): Branding {
   const device = devices.find(d => d.serial === camera.serial)
   return {
     manufacturer: 'eufy',
-    model: device?.modelName || device?.model || 'eufy camera',
+    model: camera.model || device?.modelName || device?.model || 'eufy camera',
     serialNumber: camera.serial,
     firmwareRevision: firmwareFrom(version),
   }
@@ -128,11 +131,14 @@ export function codecFor(camera: Pick<GatewayCameraStatus, 'video'>): CodecChoic
 
 const hidePassword = (source: string): string => source.replace(/\/\/([^:@/]+):[^@/]*@/, '//$1:***@')
 
-export async function discover(gateway: GatewayConfig, client?: Pick<GatewayClient, 'status' | 'devices'>): Promise<Discovery> {
+export async function discover(gateway: GatewayConfig, client?: Pick<GatewayClient, 'status' | 'devices' | 'usedLogin'>): Promise<Discovery> {
   const url = normalizeGatewayAddress(gateway.url ?? '')
   const api = client ?? new GatewayClient({ ...gateway, url })
   const status = await api.status() as GatewayStatus
-  const devices = await api.devices().catch(() => [] as GatewayDevice[]) as GatewayDevice[]
+  const apiLogin = api.usedLogin
+  // Older gateways have the models only in the device list (which needs the web login).
+  const needDevices = (status.cameras ?? []).some(camera => !camera.model)
+  const devices = needDevices ? await api.devices().catch(() => [] as GatewayDevice[]) as GatewayDevice[] : []
   const rtspPort = status.rtspPort || DEFAULT_RTSP_PORT
   const rtspLogin = !!status.rtsp?.login
   const forSource = new GatewayClient({ ...gateway, url, rtspPort })
@@ -141,6 +147,7 @@ export async function discover(gateway: GatewayConfig, client?: Pick<GatewayClie
     version: status.gateway?.version ?? '',
     rtspPort,
     rtspLogin,
+    apiLogin,
     cameras: (status.cameras ?? []).map(camera => ({
       name: camera.name,
       serial: camera.serial,
