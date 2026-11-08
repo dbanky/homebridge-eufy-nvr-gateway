@@ -26,9 +26,9 @@ wakes it; closing it lets the camera sleep again.
 - **Live view wakes the camera.** When the Home app opens a camera, the plugin asks the gateway to
   wake it. The picture appears at once (the gateway's *Waking up* picture) and switches to live video
   when the camera is awake, usually within a few seconds.
-- **It stays awake while you watch**, however long, and **sleeps when you're done**: when the
-  gateway's hold time ends (30 seconds by default), or at once with *Sleep as soon as live view
-  closes*.
+- **It stays awake while you watch**, however long, and **sleeps as soon as you're done**, if the
+  live view was what woke it. A camera that was already awake (motion, a doorbell press) is left to
+  the gateway.
 - **Tiles never wake a camera.** The pictures on the Home app's tiles come from the gateway: the last
   picture while a camera sleeps, the live one while it is awake.
 - **Nothing to type but the gateway's address.** The settings page finds the gateway's cameras and
@@ -37,8 +37,8 @@ wakes it; closing it lets the camera sleep again.
 
 ## Installation
 
-The gateway must be running and reachable from the Homebridge host: its web page on port `8099`,
-its streams on `8554`.
+The gateway (version 0.6.0 or later) must be running and reachable from the Homebridge host: its web
+page on port `8099`, its streams on `8554`.
 
 In the Homebridge UI, open *Plugins*, search for `homebridge-eufy-nvr-gateway` and install it. Or,
 in the Homebridge terminal:
@@ -56,23 +56,21 @@ Each release is also attached as a `.tgz` file on the
 Open the plugin's settings in the Homebridge UI and enter the gateway's IP address (its port too, if
 it isn't `8099`). The page finds the gateway's cameras at once.
 
-**Logins.** Only if the gateway has them:
-
-- **Stream login**: the gateway's `"rtsp"` login, the one your NVR uses. The page asks for it when
-  the gateway needs a login. Homebridge plays the streams with it, and finds and wakes the cameras
-  with it.
-- **Web page login**: only for gateways before 0.6.0, which don't accept the stream login for
-  finding and waking cameras. The page asks for it only then. Updating the gateway makes it unnecessary, and the
-  page doesn't store it when the stream login is enough.
+**Login.** Only if the gateway has one: its **stream login** (`"rtsp"` in its config.json), the one
+your NVR uses. The page asks for it when the gateway needs it. Homebridge plays the streams with it,
+and finds and wakes the cameras with it; it never needs the gateway's web page login. This needs
+eufy NVR Gateway 0.6.0 or later.
 
 **For each camera** the page shows its name and stream (both follow from the gateway) and fills in
 the model and serial number. You choose:
 
 - **Add to HomeKit**: every camera at the first setup; cameras the gateway gets later start off.
 - **Sound**: on when the gateway's stream for that camera has sound (`"audio": true` on the gateway).
-- **Sleep as soon as live view closes**: off, the camera sleeps when the gateway's hold time ends.
-  That leaves a session the camera started for motion alone, so an NVR recording the same camera
-  keeps its recording.
+- **Sleep as soon as live view closes** (on by default): the camera goes back to sleep the moment
+  the last Home app viewer leaves, if the live view was what woke it; a camera that was already awake
+  is left alone. If motion starts *while* you watch, closing the live view still ends the session,
+  which also stops an NVR's recording of it; turn this off if an NVR records the camera and that
+  matters to you. Off, the camera sleeps when the gateway's hold time ends (30 seconds by default).
 - **Experimental – WIP → Video codec**: *Automatic* passes the gateway's H.264 to HomeKit as it is
   (`copy`, almost no CPU), and converts with `libx264` when the stream is H.265, which HomeKit can't
   play, or when the gateway doesn't know the camera's format yet. It is decided again at every
@@ -114,7 +112,7 @@ What the settings page writes, for reference:
     {
       "name": "front-door",
       "gatewayCamera": "front-door",
-      "sleepWhenStreamEnds": false,
+      "sleepWhenStreamEnds": true,
       "videoConfig": { "audio": true }
     }
   ]
@@ -126,11 +124,10 @@ What the settings page writes, for reference:
 | `gateway.url` | The gateway's web page |
 | `gateway.rtspUsername`, `gateway.rtspPassword` | The gateway's stream login (`"rtsp"` in its config.json), if it has one |
 | `gateway.rtspPort` | The gateway's RTSP port, if not `8554` |
-| `gateway.username`, `gateway.password` | The gateway's web page login: only for gateways before 0.6.0, which refuse the stream login for finding and waking cameras |
 | `cameras[].gatewayCamera` | The camera's `name` in the gateway's config.json |
 | `cameras[].name` | The name in the Home app (the settings page uses the gateway's name) |
 | `cameras[].wakeOnStream` | `false`: live view doesn't wake the camera (default `true`) |
-| `cameras[].sleepWhenStreamEnds` | `true`: the camera sleeps as soon as the last viewer leaves, if live view woke it (default `false`) |
+| `cameras[].sleepWhenStreamEnds` | The camera sleeps as soon as the last viewer leaves, if live view woke it (default `true`); `false`: when the gateway's hold time ends |
 | `cameras[].videoConfig.audio` | Sound in the Home app |
 | `cameras[].videoConfig.vcodec` | `copy` or `libx264`; left out, it is chosen at every start |
 

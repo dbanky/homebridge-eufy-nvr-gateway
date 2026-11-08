@@ -21,42 +21,30 @@
 <div id="menuWrapper" class="btn-group w-100 mb-0" role="group" aria-label="UI Menu" style="display: none">
   <button type="button" class="btn btn-primary" id="menuSettings">Settings</button>
   <button type="button" class="btn btn-primary" id="menuDevices">Devices</button>
-  <button type="button" class="btn btn-primary mr-0" id="menuHome">Support</button>
+  <button type="button" class="btn btn-primary me-0" id="menuHome">Support</button>
 </div>
 <div id="disabledBanner" class="alert alert-secondary mb-0 mt-3" role="alert" style="display: none">
   Plugin is currently disabled
-  <button id="disabledEnable" type="button" class="btn btn-link p-0 m-0 float-right">Enable</button>
+  <button id="disabledEnable" type="button" class="btn btn-link p-0 m-0 float-end">Enable</button>
 </div>
 <div id="pageDevices" class="mt-4" style="display: none">
-  <div id="deviceInfo">
-    <form>
-      <div class="form-group">
-        <select class="form-control" id="deviceSelect"></select>
-      </div>
-    </form>
-    <table class="table w-100" id="deviceTable" style="display: none">
+  <div id="devicesStatus" class="alert mb-2" role="status" style="display: none"></div>
+  <div class="table-responsive">
+    <table class="table w-100" id="devicesTable" style="display: none">
       <thead>
         <tr class="table-active">
-          <th scope="col" style="width: 40%">Device Name</th>
-          <th scope="col" style="width: 60%" id="displayName"></th>
+          <th scope="col">Camera</th>
+          <th scope="col">Now</th>
+          <th scope="col">Model</th>
+          <th scope="col">Serial number</th>
+          <th scope="col">Firmware</th>
+          <th scope="col">Video</th>
         </tr>
       </thead>
-      <tbody>
-        <tr>
-          <th scope="row">Serial Number</th>
-          <td id="serialNumber"></td>
-        </tr>
-        <tr>
-          <th scope="row">Model</th>
-          <td id="model"></td>
-        </tr>
-        <tr>
-          <th scope="row">Firmware Version</th>
-          <td id="firmwareRevision"></td>
-        </tr>
-      </tbody>
+      <tbody id="devicesRows"></tbody>
     </table>
   </div>
+  <p class="muted" style="opacity: 0.7; font-size: 0.85rem">The cameras added to HomeKit on the Settings page, with what the gateway says about them right now.</p>
 </div>
 <div id="pageSettings" class="mt-4" style="display: none">
   <style>
@@ -68,13 +56,11 @@
   <div class="card">
     <div class="card-body">
       <h5 class="card-title">eufy NVR Gateway</h5>
-      <div class="form-group mb-2">
+      <div class="mb-2">
         <label for="gwAddress">Gateway IP address</label>
         <div class="input-group">
           <input type="text" class="form-control" id="gwAddress" placeholder="192.168.1.10" autocomplete="off" />
-          <div class="input-group-append">
-            <button type="button" class="btn btn-primary m-0" id="gwDiscover">Find cameras</button>
-          </div>
+          <button type="button" class="btn btn-primary m-0" id="gwDiscover">Find cameras</button>
         </div>
         <small class="form-text muted">The gateway's address, with its port if it isn't 8099 (e.g. 192.168.1.10:8099).</small>
       </div>
@@ -82,18 +68,11 @@
       <div id="gwRtspLogin" style="display: none" class="mt-2">
         <label>Stream login</label>
         <p class="muted mb-1">The gateway's stream login ("rtsp" in its config.json), the one your NVR uses. Homebridge plays the streams with it, and finds and wakes the cameras with it.</p>
-        <div class="form-row">
-          <div class="form-group col-sm-6 mb-1"><input type="text" class="form-control" id="gwRtspUsername" placeholder="Username" autocomplete="off" /></div>
-          <div class="form-group col-sm-6 mb-1"><input type="password" class="form-control" id="gwRtspPassword" placeholder="Password" autocomplete="new-password" /></div>
+        <div class="row g-2">
+          <div class="col-sm-6 mb-1"><input type="text" class="form-control" id="gwRtspUsername" placeholder="Username" autocomplete="off" /></div>
+          <div class="col-sm-6 mb-1"><input type="password" class="form-control" id="gwRtspPassword" placeholder="Password" autocomplete="new-password" /></div>
         </div>
       </div>
-      <div id="gwWebLogin" style="display: none" class="mt-2">
-        <label>Web page login (gateways before 0.6.0)</label>
-        <p class="muted mb-1">Only for gateways before 0.6.0, which don't accept the stream login for finding and waking cameras: the login of the gateway's web page ("web" in its config.json). Updating the gateway makes this unnecessary.</p>
-        <div class="form-row">
-          <div class="form-group col-sm-6 mb-1"><input type="text" class="form-control" id="gwUsername" placeholder="Username" autocomplete="off" /></div>
-          <div class="form-group col-sm-6 mb-1"><input type="password" class="form-control" id="gwPassword" placeholder="Password" autocomplete="new-password" /></div>
-        </div>
       </div>
     </div>
   </div>
@@ -147,8 +126,6 @@
     const gatewayForm = () => {
       const gateway = {
         url: $('gwAddress').value.trim(),
-        username: $('gwUsername').value.trim(),
-        password: $('gwPassword').value,
         rtspUsername: $('gwRtspUsername').value.trim(),
         rtspPassword: $('gwRtspPassword').value,
       };
@@ -158,13 +135,11 @@
 
     // Write the page's state into the plugin config (Homebridge's Save button stores it).
     const store = async () => {
-      const gateway = gatewayForm();
+      const gateway = gatewayForm();   // never the web page's login: earlier versions could store it
       if (found) {
         gateway.url = found.url;
         if (found.rtspPort !== 8554) gateway.rtspPort = found.rtspPort;
         if (!found.rtspLogin) { delete gateway.rtspUsername; delete gateway.rtspPassword; }
-        // The gateway's admin login is only kept when the gateway needs it (it refused the stream login).
-        if (found.apiLogin !== 'web') { delete gateway.username; delete gateway.password; }
       }
       const others = (config.cameras || []).filter((camera) => !camera.gatewayCamera);
       const gatewayCameras = found
@@ -175,18 +150,19 @@
     };
 
     const toggle = (id, label, checked, disabled, onChange) => {
-      const input = el('input', { type: 'checkbox', class: 'custom-control-input', id, checked, disabled });
+      // Bootstrap 5 (the Homebridge UI's): form-check form-switch keeps the switch and its text apart.
+      const input = el('input', { type: 'checkbox', class: 'form-check-input', role: 'switch', id, checked, disabled });
       input.addEventListener('change', () => onChange(input.checked));
-      return el('div', { class: 'custom-control custom-switch' }, input, el('label', { class: 'custom-control-label', for: id, text: label }));
+      return el('div', { class: 'form-check form-switch mb-2' }, input, el('label', { class: 'form-check-label ps-1', for: id, text: label }));
     };
 
-    const row = (label, value, mono) => el('div', { class: 'form-group mb-2' },
+    const row = (label, value, mono) => el('div', { class: 'mb-2' },
       el('label', { class: 'mb-0 muted', text: label }),
       el('div', { class: mono ? 'readonly' : '', text: value }));
 
     const cameraCard = (camera, index) => {
       const { discovered: d, config: c } = camera;
-      const card = el('div', { class: `card ${camera.included ? '' : 'camera-off'}` });
+      const card = el('div', { class: `card mb-3${camera.included ? '' : ' camera-off'}` });
       const body = el('div', { class: 'card-body' });
       const details = el('div', { class: 'camera-details mt-3' });
 
@@ -214,7 +190,7 @@
         await store();
       }));
 
-      const codec = el('select', { class: 'form-control', id: `cam${index}Codec` },
+      const codec = el('select', { class: 'form-select', id: `cam${index}Codec` },
         el('option', { value: '', text: `Automatic (now: ${d.codec.vcodec})` }),
         el('option', { value: 'copy', text: 'copy (no conversion)' }),
         el('option', { value: 'libx264', text: 'libx264 (convert to H.264)' }));
@@ -226,7 +202,7 @@
       });
       details.append(el('details', { class: 'mt-2' },
         el('summary', { text: 'Experimental – WIP' }),
-        el('div', { class: 'form-group mt-2 mb-0' },
+        el('div', { class: 'mt-2 mb-0' },
           el('label', { for: `cam${index}Codec`, text: 'Video codec' }), codec,
           el('small', { class: 'form-text muted', text: `Automatic picks ${d.codec.vcodec}: ${d.codec.note} Picked again at every Homebridge start.` }))));
 
@@ -239,8 +215,7 @@
       const list = $('cameraList');
       list.innerHTML = '';
       if (found) {
-        $('gwRtspLogin').style.display = found.rtspLogin || found.apiLogin === 'stream' ? 'block' : 'none';
-        $('gwWebLogin').style.display = found.apiLogin === 'web' ? 'block' : 'none';
+        if (found.rtspLogin) $('gwRtspLogin').style.display = 'block';
       }
       if (!found) return;
       found.cameras.forEach((camera, index) => list.append(cameraCard(camera, index)));
@@ -258,26 +233,21 @@
         found = answer;
         $('gwAddress').value = answer.url.replace(/^http:\/\//, '');
         const count = answer.cameras.length;
-        const via = answer.apiLogin === 'web' ? ' · signed in with the web page login (update the gateway to 0.6.0 or later so the stream login is enough)' : '';
         const missing = answer.rtspLogin && !$('gwRtspUsername').value.trim() ? ' · enter the stream login below: the streams need it' : '';
         status(count ? (missing ? 'warning' : 'success') : 'warning', count
-          ? `Connected to eufy NVR Gateway ${answer.version} · ${count} camera${count === 1 ? '' : 's'}${via}${missing}`
+          ? `Connected to eufy NVR Gateway ${answer.version} · ${count} camera${count === 1 ? '' : 's'}${missing}`
           : `Connected to eufy NVR Gateway ${answer.version}, but it has no cameras yet: add them to its config.json first.`);
         render();
         await store();
       } catch (error) {
         const message = (error && error.message) || String(error);
         if (!/HTTP 401/.test(message)) return status('danger', `Can't reach the gateway: ${message}`);
-        // The gateway wants a login: first the stream login; the web login only if that is refused.
+        // The gateway wants a login: its stream login.
         const stream = !!$('gwRtspUsername').value.trim();
-        const web = !!$('gwUsername').value.trim();
         $('gwRtspLogin').style.display = 'block';
-        if (stream) $('gwWebLogin').style.display = 'block';
         status('danger', !stream
           ? 'The gateway asks for a login: enter its stream login below ("rtsp" in its config.json).'
-          : !web
-            ? 'The gateway didn\'t accept the stream login. Check it; gateways before 0.6.0 accept only their web page login for this, which you can enter below.'
-            : 'The gateway accepted neither login: check both.');
+          : 'The gateway didn\'t accept the stream login: check it. The gateway must be version 0.6.0 or later.');
       }
     };
 
@@ -294,16 +264,12 @@
           started = true;
           const gateway = config.gateway || {};
           $('gwAddress').value = (gateway.url || '').replace(/^http:\/\//, '');
-          $('gwUsername').value = gateway.username || '';
-          $('gwPassword').value = gateway.password || '';
           $('gwRtspUsername').value = gateway.rtspUsername || '';
           $('gwRtspPassword').value = gateway.rtspPassword || '';
           if (gateway.rtspUsername) $('gwRtspLogin').style.display = 'block';
-          if (gateway.username) $('gwWebLogin').style.display = 'block';
           $('gwDiscover').addEventListener('click', discover);
           $('gwAddress').addEventListener('input', later);
           $('gwAddress').addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); discover(); } });
-          for (const id of ['gwUsername', 'gwPassword']) $(id).addEventListener('input', later);
           for (const id of ['gwRtspUsername', 'gwRtspPassword']) $(id).addEventListener('input', later);
         }
         if ($('gwAddress').value.trim()) await discover();
@@ -340,42 +306,50 @@
         document.getElementById('pageSupport').style.display = 'none';
         document.getElementById('pageSettings').style.display = 'none';
         document.getElementById('pageDevices').style.display = 'block';
-        const cachedAccessories =
-          typeof homebridge.getCachedAccessories === 'function'
-            ? await homebridge.getCachedAccessories()
-            : await homebridge.request('/getCachedAccessories');
-        if (cachedAccessories.length > 0) {
-          cachedAccessories.sort((a, b) => {
-            return a.displayName.toLowerCase() > b.displayName.toLowerCase() ? 1 : b.displayName.toLowerCase() > a.displayName.toLowerCase() ? -1 : 0;
-          });
-        }
-        const deviceSelect = document.getElementById('deviceSelect');
-        deviceSelect.innerHTML = '';
-        cachedAccessories.forEach((a) => {
-          const option = document.createElement('option');
-          option.text = a.displayName;
-          option.value = a.UUID;
-          deviceSelect.add(option);
-        });
-        showDeviceInfo = async (UUID) => {
-          homebridge.showSpinner();
-          const thisAcc = cachedAccessories.find((x) => x.UUID === UUID);
-          const context = thisAcc.context;
-          document.getElementById('displayName').innerHTML = thisAcc.displayName;
-          document.getElementById('serialNumber').innerHTML = context.serialNumber;
-          document.getElementById('model').innerHTML = context.model;
-          document.getElementById('firmwareRevision').innerHTML = context.firmwareRevision || 'N/A';
-          document.getElementById('deviceTable').style.display = 'inline-table';
-          homebridge.hideSpinner();
+        // HomeKit cameras are separate ("external") accessories, which Homebridge doesn't keep in its
+        // accessory cache: the list comes from the config and, live, from the gateway.
+        const note = (kind, text) => {
+          const box = document.getElementById('devicesStatus');
+          box.className = `alert alert-${kind} mb-2`;
+          box.textContent = text;
+          box.style.display = text ? 'block' : 'none';
         };
-        deviceSelect.addEventListener('change', (event) => showDeviceInfo(event.target.value));
-        if (cachedAccessories.length > 0) {
-          showDeviceInfo(cachedAccessories[0].UUID);
-        } else {
-          const option = document.createElement('option');
-          option.text = 'No Devices';
-          deviceSelect.add(option);
-          deviceSelect.disabled = true;
+        const config = (await homebridge.getPluginConfig())[0] || {};
+        const cameras = (config.cameras || []).filter((camera) => camera.gatewayCamera);
+        const rows = document.getElementById('devicesRows');
+        rows.innerHTML = '';
+        document.getElementById('devicesTable').style.display = cameras.length ? 'table' : 'none';
+        if (!cameras.length) {
+          note('secondary', 'No cameras yet: add them on the Settings page.');
+          return homebridge.hideSpinner();
+        }
+        let live = new Map();
+        try {
+          const answer = await homebridge.request('/discover', { gateway: config.gateway || {}, cameras: config.cameras });
+          live = new Map(answer.cameras.map((camera) => [camera.discovered.name, camera.discovered]));
+          note('', '');
+        } catch (error) {
+          note('warning', `Can't reach the gateway right now (${(error && error.message) || error}): showing the saved settings only.`);
+        }
+        const STATES = { IDLE: 'Asleep', WAKING: 'Waking up', LIVE: 'Live' };
+        for (const camera of cameras) {
+          const d = live.get(camera.gatewayCamera);
+          const now = !live.size ? '—' : !d ? 'Not on the gateway' : `${STATES[d.state] || d.state}${d.battery === null ? '' : ` · battery ${d.battery}%`}`;
+          const cells = [
+            camera.name === camera.gatewayCamera ? camera.name : `${camera.name} (${camera.gatewayCamera})`,
+            now,
+            camera.model || (d && d.branding.model) || '—',
+            camera.serialNumber || (d && d.serial) || '—',
+            camera.firmwareRevision || (d && d.branding.firmwareRevision) || '—',
+            d ? [d.resolution, d.video].filter(Boolean).join(' · ') : '—',
+          ];
+          const row = document.createElement('tr');
+          for (const text of cells) {
+            const cell = document.createElement('td');
+            cell.textContent = text;
+            row.append(cell);
+          }
+          rows.append(row);
         }
         homebridge.hideSpinner();
       };

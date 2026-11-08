@@ -4,6 +4,26 @@ All notable changes to this project. Versions follow [Semantic Versioning](https
 This plugin is based on [Homebridge Camera FFmpeg](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg)
 4.1.0; its own history is in [its changelog](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/blob/latest/CHANGELOG.md).
 
+## [0.3.0] - 2026-11-08
+
+### Changed
+
+- **Only the stream login.** The web page login is gone from the settings page and the settings:
+  Homebridge logs in to the gateway with its stream login alone, which needs eufy NVR Gateway 0.6.0
+  or later. Saving the settings once removes a web login that 0.2.0 stored.
+- **Sleep as soon as live view closes is on by default** for cameras added from now on: the
+  camera goes back to sleep the moment you close its live view, if the live view woke it. Cameras
+  already set up keep their setting (earlier versions saved it as off): turn it on in the settings.
+
+### Fixed
+
+- **The Devices tab lists the cameras.** It said "No Devices", because Homebridge keeps no cache
+  of HomeKit cameras (they are separate accessories). It now shows each camera added to HomeKit with
+  what the gateway says about it right now: asleep, waking or live, battery, model, serial number,
+  firmware and video; with the saved details only when the gateway can't be reached.
+- The switches on the settings page have space between the switch and its text, and the camera
+  cards don't touch: the page now uses the Homebridge UI's own styles (Bootstrap 5).
+
 ## [0.2.0] - 2026-11-08
 
 ### Changed

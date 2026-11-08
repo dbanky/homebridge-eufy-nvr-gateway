@@ -26,7 +26,7 @@
         "rtspUsername": {
           "title": "Stream Login: Username",
           "type": "string",
-          "description": "The gateway's stream login (\"rtsp\" in its config.json), the one your NVR uses. Plays the streams, and finds and wakes the cameras."
+          "description": "The gateway's stream login (\"rtsp\" in its config.json), the one your NVR uses. Plays the streams, and finds and wakes the cameras (eufy NVR Gateway 0.6.0 or later)."
         },
         "rtspPassword": {
           "title": "Stream Login: Password",
@@ -40,18 +40,6 @@
           "type": "integer",
           "placeholder": 8554,
           "description": "The gateway's RTSP port (\"ports.rtsp\" in its config.json)."
-        },
-        "username": {
-          "title": "Web Page Login: Username (gateways before 0.6.0)",
-          "type": "string",
-          "description": "Only for gateways before 0.6.0, which don't accept the stream login for finding and waking cameras: the login of the gateway's web page (\"web\" in its config.json)."
-        },
-        "password": {
-          "title": "Web Page Login: Password (gateways before 0.6.0)",
-          "type": "string",
-          "x-schema-form": {
-            "type": "password"
-          }
         }
       }
     },
@@ -126,8 +114,8 @@
           "sleepWhenStreamEnds": {
             "title": "Sleep as Soon as Live View Closes",
             "type": "boolean",
-            "default": false,
-            "description": "Let the camera sleep the moment the last Home app viewer leaves, if HomeKit was what woke it. Off: it sleeps when the gateway's hold time ends (30 s by default), which keeps a recording NVR's motion session intact."
+            "default": true,
+            "description": "Let the camera sleep the moment the last Home app viewer leaves, if HomeKit was what woke it (on by default). Off: it sleeps when the gateway's hold time ends (30 s by default), which keeps an NVR's recording going if motion starts while you watch."
           },
           "manufacturer": {
             "name": "Manufacturer",
@@ -373,9 +361,7 @@
         "gateway.url",
         "gateway.rtspUsername",
         "gateway.rtspPassword",
-        "gateway.rtspPort",
-        "gateway.username",
-        "gateway.password"
+        "gateway.rtspPort"
       ]
     },
     {

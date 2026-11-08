@@ -56,7 +56,7 @@ export interface CameraConfig {
   mqtt?: MqttCameraConfig
   gatewayCamera?: string // the camera's "name" in the eufy-nvr-gateway's config.json
   wakeOnStream?: boolean // wake the camera while HomeKit streams it (default true)
-  sleepWhenStreamEnds?: boolean // let it sleep as soon as the last HomeKit viewer leaves (default false)
+  sleepWhenStreamEnds?: boolean // let it sleep as soon as the last HomeKit viewer leaves (default true)
   videoConfig?: VideoConfig
 }
 

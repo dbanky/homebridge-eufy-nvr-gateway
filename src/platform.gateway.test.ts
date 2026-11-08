@@ -131,3 +131,16 @@ describe('the automatic video codec', () => {
     expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('vcodec "copy": The gateway streams this camera as H.265'))
   })
 })
+
+describe('sleeping as soon as live view closes', () => {
+  it('is on unless the config turns it off', () => {
+    const config = {
+      platform: 'EufyNvrGateway',
+      gateway: { url: 'http://192.168.1.10:8099' },
+      cameras: [{ name: 'Garden', gatewayCamera: 'garden' }, { name: 'Porch', gatewayCamera: 'porch', sleepWhenStreamEnds: false }],
+    } as unknown as PlatformConfig
+    const platform = new FfmpegPlatform(logging(), config, api) as any
+    expect(platform.gatewayCamera(cameraConfigs(platform).get('uuid-Garden')).options.sleepWhenStreamEnds).toBe(true)
+    expect(platform.gatewayCamera(cameraConfigs(platform).get('uuid-Porch')).options.sleepWhenStreamEnds).toBe(false)
+  })
+})

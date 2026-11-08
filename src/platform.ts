@@ -114,7 +114,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
       options: {
         camera: cameraConfig.gatewayCamera,
         wakeOnStream: cameraConfig.wakeOnStream ?? true,
-        sleepWhenStreamEnds: cameraConfig.sleepWhenStreamEnds ?? false,
+        sleepWhenStreamEnds: cameraConfig.sleepWhenStreamEnds ?? true,
         keepAliveMs: DEFAULT_KEEP_ALIVE_MS,
       },
     }

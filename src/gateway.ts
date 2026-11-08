@@ -17,10 +17,8 @@ import { Buffer } from 'node:buffer'
 
 export interface GatewayConfig {
   url?: string // the gateway's web page, e.g. http://192.168.1.10:8099
-  username?: string // the web page's login, if it has one ("web" in the gateway's config.json)
-  password?: string
   rtspPort?: number // default 8554
-  rtspUsername?: string // the streams' login, if they have one ("rtsp" in the gateway's config.json)
+  rtspUsername?: string // the stream login ("rtsp" in the gateway's config.json): streams and API
   rtspPassword?: string
 }
 
@@ -134,74 +132,34 @@ export class GatewayClient {
     return res.json()
   }
 
-  // The logins for the gateway's API, in order. The stream login comes first: the gateway accepts it
-  // for everything this plugin does (the camera list, snapshots, wake and sleep), so Homebridge never
-  // needs the web page's admin login. The web login is the fallback for gateways that only accept
-  // that one. After a success, the login that worked is tried first.
-  private loginsInOrder(): Array<ApiLogin | null> {
-    const logins: ApiLogin[] = []
-    if (this.config.rtspUsername) {
-      logins.push({ kind: 'stream', header: basicHeader(this.config.rtspUsername, this.config.rtspPassword) })
-    }
-    if (this.config.username) {
-      logins.push({ kind: 'web', header: basicHeader(this.config.username, this.config.password) })
-    }
-    if (logins.length === 0) {
-      return [null]
-    }
-    return this.worked ? [...logins].sort(a => (a.kind === this.worked ? -1 : 1)) : logins
-  }
-
-  private worked: ApiLogin['kind'] | null = null
-
-  // Which login the gateway took last: 'stream', 'web', or 'none' (it needs none).
-  get usedLogin(): ApiLogin['kind'] | 'none' {
-    return this.worked ?? 'none'
-  }
-
+  // The gateway's API takes the stream login (eufy NVR Gateway 0.6.0 or later): the camera list,
+  // snapshots, wake and sleep are all this plugin does, so it never needs the web page's admin login.
   private async request(method: string, path: string, timeoutMs: number): Promise<Response> {
     const url = new URL(path, this.base)
-    const logins = this.loginsInOrder()
-    let res: Response | undefined
-    for (const [index, login] of logins.entries()) {
-      const headers: Record<string, string> = login ? { authorization: login.header } : {}
-      try {
-        res = await this.fetchImpl(url, { method, headers, signal: AbortSignal.timeout(timeoutMs) })
-      } catch (error) {
-        const why = (error as Error).name === 'TimeoutError' ? `no answer within ${timeoutMs / 1000} s` : (error as Error).message
-        throw new Error(`${method} ${url.pathname}: ${why}`)
-      }
-      const refused = res.status === 401 || res.status === 403
-      if (refused && index < logins.length - 1) {
-        continue // try the next login
-      }
-      if (res.ok && login) {
-        this.worked = login.kind
-      }
-      break
+    const headers: Record<string, string> = {}
+    if (this.config.rtspUsername) {
+      const login = `${this.config.rtspUsername}:${this.config.rtspPassword ?? ''}`
+      headers.authorization = `Basic ${Buffer.from(login, 'utf8').toString('base64')}`
     }
-    if (!res!.ok) {
-      const status = res!.status
-      const hint = status === 401
-        ? ' (check the stream login, "gateway.rtspUsername" and "gateway.rtspPassword"; gateways before 0.6.0 need the web login, "gateway.username" and "gateway.password")'
-        : status === 404
+    let res: Response
+    try {
+      res = await this.fetchImpl(url, { method, headers, signal: AbortSignal.timeout(timeoutMs) })
+    } catch (error) {
+      const why = (error as Error).name === 'TimeoutError' ? `no answer within ${timeoutMs / 1000} s` : (error as Error).message
+      throw new Error(`${method} ${url.pathname}: ${why}`)
+    }
+    if (!res.ok) {
+      const hint = res.status === 401
+        ? ' (check the stream login, "gateway.rtspUsername" and "gateway.rtspPassword"; the gateway must be 0.6.0 or later to accept it)'
+        : res.status === 404
           ? ' (check the camera name: it must match "name" in the gateway\'s config.json)'
-          : status === 429
+          : res.status === 429
             ? ' (too many wrong logins from this machine: the gateway refuses its logins for a few minutes; check the password)'
             : ''
-      throw new Error(`${method} ${url.pathname}: HTTP ${status}${hint}`)
+      throw new Error(`${method} ${url.pathname}: HTTP ${res.status}${hint}`)
     }
-    return res!
+    return res
   }
-}
-
-interface ApiLogin {
-  kind: 'stream' | 'web'
-  header: string
-}
-
-function basicHeader(username: string, password?: string): string {
-  return `Basic ${Buffer.from(`${username}:${password ?? ''}`, 'utf8').toString('base64')}`
 }
 
 interface Timers {

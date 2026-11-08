@@ -66,7 +66,6 @@ export interface Discovery {
   version: string
   rtspPort: number
   rtspLogin: boolean // the streams need a login ("rtsp" in the gateway's config.json)
-  apiLogin: 'stream' | 'web' | 'none' // the login the gateway's API took
   cameras: DiscoveredCamera[]
 }
 
@@ -131,12 +130,11 @@ export function codecFor(camera: Pick<GatewayCameraStatus, 'video'>): CodecChoic
 
 const hidePassword = (source: string): string => source.replace(/\/\/([^:@/]+):[^@/]*@/, '//$1:***@')
 
-export async function discover(gateway: GatewayConfig, client?: Pick<GatewayClient, 'status' | 'devices' | 'usedLogin'>): Promise<Discovery> {
+export async function discover(gateway: GatewayConfig, client?: Pick<GatewayClient, 'status' | 'devices'>): Promise<Discovery> {
   const url = normalizeGatewayAddress(gateway.url ?? '')
   const api = client ?? new GatewayClient({ ...gateway, url })
   const status = await api.status() as GatewayStatus
-  const apiLogin = api.usedLogin
-  // Older gateways have the models only in the device list (which needs the web login).
+  // Gateways before 0.6.0 have the models only in the device list (open only without a web login).
   const needDevices = (status.cameras ?? []).some(camera => !camera.model)
   const devices = needDevices ? await api.devices().catch(() => [] as GatewayDevice[]) as GatewayDevice[] : []
   const rtspPort = status.rtspPort || DEFAULT_RTSP_PORT
@@ -147,7 +145,6 @@ export async function discover(gateway: GatewayConfig, client?: Pick<GatewayClie
     version: status.gateway?.version ?? '',
     rtspPort,
     rtspLogin,
-    apiLogin,
     cameras: (status.cameras ?? []).map(camera => ({
       name: camera.name,
       serial: camera.serial,
@@ -175,7 +172,7 @@ export function cameraConfigFor(camera: DiscoveredCamera, previous?: CameraConfi
     name: camera.name,
     gatewayCamera: camera.name,
     ...camera.branding,
-    sleepWhenStreamEnds: previous?.sleepWhenStreamEnds ?? false,
+    sleepWhenStreamEnds: previous?.sleepWhenStreamEnds ?? true,
     videoConfig: {
       ...previousVideo,
       audio: camera.audio ? (previous?.videoConfig?.audio ?? true) : false, // only if the gateway's stream has sound
