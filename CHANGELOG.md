@@ -4,6 +4,13 @@ All notable changes to this project. Versions follow [Semantic Versioning](https
 This plugin is based on [Homebridge Camera FFmpeg](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg)
 4.1.0; its own history is in [its changelog](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/blob/latest/CHANGELOG.md).
 
+## [0.3.3] - 2026-11-08
+
+### Changed
+
+- The settings page drops two headings that repeated the window's own title: the "eufy NVR
+  Gateway for HomeKit" text under the logo, and "eufy NVR Gateway" above the gateway's address.
+
 ## [0.3.2] - 2026-11-08
 
 ### Fixed
