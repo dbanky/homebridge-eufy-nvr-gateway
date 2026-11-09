@@ -1,6 +1,6 @@
 // A camera's battery in HomeKit: a Battery service on the camera's accessory, for cameras that report
 // a battery level through the gateway (mains-powered ones report none and get no service). Its level,
-// and whether it charges (a cable or a solar panel; eufy NVR Gateway 0.7.0-beta.2 or later), come with
+// and whether it charges (a cable or a solar panel; eufy NVR Gateway 0.7.0 or later), come with
 // the gateway's status (startup, then every 30 s), so nothing extra is asked for them.
 
 import type { API, PlatformAccessory, Service } from 'homebridge'

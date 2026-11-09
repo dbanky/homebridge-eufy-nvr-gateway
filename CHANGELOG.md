@@ -4,6 +4,27 @@ All notable changes to this project. Versions follow [Semantic Versioning](https
 This plugin is based on [Homebridge Camera FFmpeg](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg)
 4.1.0; its own history is in [its changelog](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/blob/latest/CHANGELOG.md).
 
+## [0.4.0] - 2026-11-09
+
+Works with every eufy NVR Gateway from 0.6.0; the Eufy mode and charging need
+[0.7.0](https://github.com/dbanky/eufy-nvr-gateway/releases/tag/v0.7.0). Everything since 0.3.3, from
+the pre-releases below:
+
+### Added
+
+- **Eufy mode in HomeKit.** Each camera gets a security system whose Home, Away and Off switch the
+  camera's Eufy mode to Home, Away and Disarmed, through the gateway and the eufy SDK, as the eufy app
+  would. What each mode does stays set in the eufy app. A mode switched in the eufy app or by its
+  schedule shows in HomeKit within 30 seconds, and on the Devices tab. Per camera, the settings page
+  chooses which modes the Home app offers (`eufyModes`), or turns the security system off.
+- **The battery in HomeKit.** A battery camera shows its level in the Home app, *Low battery* below
+  15 %, and *Charging* while a cable or a solar panel charges it. Mains-powered cameras show none.
+
+### Fixed
+
+- **Live view says it comes from HomeKit.** The gateway's waking picture said *Requested on the web
+  page* when the Home app opened a camera; it now says *Live view in HomeKit*.
+
 ## [0.4.0-beta.3] - 2026-11-09
 
 A beta for testing, with eufy NVR Gateway
