@@ -93,8 +93,9 @@ export class GatewayClient {
     return `-rtsp_transport tcp -i ${this.rtspUrl(camera)}`
   }
 
+  // "by": the gateway's waking picture then says "Live view in HomeKit" (older gateways ignore it).
   async wake(camera: string): Promise<GatewayState> {
-    const status = await this.json('POST', cameraPath(camera, 'live'))
+    const status = await this.json('POST', cameraPath(camera, 'live'), { by: 'homekit' })
     return status.state
   }
 
@@ -114,7 +115,7 @@ export class GatewayClient {
   }
 
   async setEufyMode(camera: string, mode: EufyMode): Promise<EufyMode | null> {
-    const answer = await this.json('POST', cameraPath(camera, 'eufy-mode'), { mode })
+    const answer = await this.json('POST', cameraPath(camera, 'eufy-mode'), { mode }, EUFY_TIMEOUT_MS)
     return answer.mode ?? null
   }
 
@@ -136,8 +137,8 @@ export class GatewayClient {
     return image
   }
 
-  private async json(method: string, path: string, body?: unknown): Promise<any> {
-    const res = await this.request(method, path, body === undefined ? REQUEST_TIMEOUT_MS : EUFY_TIMEOUT_MS, body)
+  private async json(method: string, path: string, body?: unknown, timeoutMs = REQUEST_TIMEOUT_MS): Promise<any> {
+    const res = await this.request(method, path, timeoutMs, body)
     return res.json()
   }
 

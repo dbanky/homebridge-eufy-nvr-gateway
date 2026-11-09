@@ -53,6 +53,7 @@ describe('gatewayClient', () => {
     expect(await client.wake('garden')).toBe('WAKING')
     expect(calls[0].init.method).toBe('POST')
     expect(calls[0].url.href).toBe('http://192.168.1.10:8099/api/cameras/garden/live')
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ by: 'homekit' }) // its waking picture: "Live view in HomeKit"
     expect((calls[0].init.headers as Record<string, string>).authorization).toBeUndefined()
   })
 
