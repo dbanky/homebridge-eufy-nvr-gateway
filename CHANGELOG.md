@@ -4,6 +4,20 @@ All notable changes to this project. Versions follow [Semantic Versioning](https
 This plugin is based on [Homebridge Camera FFmpeg](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg)
 4.1.0; its own history is in [its changelog](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/blob/latest/CHANGELOG.md).
 
+## [0.4.0-beta.2] - 2026-11-09
+
+A beta for testing, with eufy NVR Gateway
+[0.7.0-beta.1](https://github.com/dbanky/eufy-nvr-gateway/releases/tag/v0.7.0-beta.1) (the battery
+works with any gateway version). Install it with `npm install homebridge-eufy-nvr-gateway@next` in the
+Homebridge terminal; normal updates stay on 0.3.3.
+
+### Added
+
+- **The battery in HomeKit.** A camera that reports a battery level through the gateway gets a
+  Battery in the Home app: its level, and *Low battery* below 15 %. Mains-powered cameras report
+  none and get none. The level follows the gateway's status every 30 seconds; charging isn't
+  reported by the gateway, so it shows as not charging.
+
 ## [0.4.0-beta.1] - 2026-11-09
 
 The first beta of 0.4.0, with eufy NVR Gateway

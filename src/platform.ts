@@ -11,6 +11,7 @@ import http from 'node:http'
 import { APIEvent, CharacteristicEventTypes, PlatformAccessoryEvent } from 'homebridge'
 import mqtt from 'mqtt'
 
+import { CameraBattery } from './cameraBattery.js'
 import { brandingFor, codecFor } from './discovery.js'
 import { EufyModeSwitch } from './eufyModeSwitch.js'
 import { DEFAULT_KEEP_ALIVE_MS, GatewayClient, gatewayProblem } from './gateway.js'
@@ -19,7 +20,7 @@ import { getVersion, PLATFORM_NAME, PLUGIN_NAME } from './settings.js'
 import { StreamingDelegate } from './streamingDelegate.js'
 
 const version = getVersion()
-const EUFY_MODE_POLL_MS = 30_000
+const STATUS_POLL_MS = 30_000 // the cameras' Eufy modes and batteries, from the gateway's status
 
 export class FfmpegPlatform implements DynamicPlatformPlugin {
   private readonly log: Logger
@@ -109,6 +110,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
 
   private readonly gatewayCameras = new Map<string, GatewayCamera>() // by HomeKit name
   private readonly eufyModeSwitches = new Map<string, EufyModeSwitch>() // by gateway camera name
+  private readonly batteries = new Map<string, CameraBattery>() // by gateway camera name
 
   private gatewayCamera(cameraConfig: CameraConfig): GatewayCamera | undefined {
     if (!cameraConfig.gatewayCamera || !this.gateway) {
@@ -177,6 +179,11 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
     const delegate = new StreamingDelegate(this.log, cameraConfig, this.api, this.api.hap, accessory, this.config.videoProcessor, this.gatewayCamera(cameraConfig))
 
     accessory.configureController(delegate.controller)
+
+    // The camera's battery (cameraBattery.ts): shown once the gateway reports a level for it.
+    if (cameraConfig.gatewayCamera && this.gateway) {
+      this.batteries.set(cameraConfig.gatewayCamera, new CameraBattery(this.api, this.log, accessory, cameraConfig.name!))
+    }
 
     // The camera's Eufy mode as a security system (eufyModeSwitch.ts), unless turned off.
     if (cameraConfig.gatewayCamera && this.gateway && cameraConfig.eufyModeSwitch !== false) {
@@ -413,6 +420,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
         }
         this.log.info(`Found on the gateway as "${camera.name}" (${camera.state.toLowerCase()}).`, cameraConfig.name)
         this.eufyModeSwitches.get(camera.name)?.show(camera.eufyMode?.mode)
+        this.batteries.get(camera.name)?.show(camera.battery)
         // For the stream log: what the gateway streams (no probing per stream).
         const known = this.gatewayCamera(cameraConfig)
         if (known) {
@@ -456,10 +464,10 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
     }
   }
 
-  // The cameras' Eufy modes, every 30 s with one status request: a mode switched in the eufy app or
-  // by its schedule shows in HomeKit too.
-  private followEufyModes(): void {
-    if (!this.gateway || this.eufyModeSwitches.size === 0) {
+  // The cameras' Eufy modes and batteries, every 30 s with one status request: a mode switched in the
+  // eufy app or by its schedule, and a draining battery, show in HomeKit too.
+  private followGatewayStatus(): void {
+    if (!this.gateway || (this.eufyModeSwitches.size === 0 && this.batteries.size === 0)) {
       return
     }
     let failing = false
@@ -468,15 +476,16 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
         const status = await this.gateway!.status() as GatewayStatus
         for (const camera of status.cameras ?? []) {
           this.eufyModeSwitches.get(camera.name)?.show(camera.eufyMode?.mode)
+          this.batteries.get(camera.name)?.show(camera.battery)
         }
         failing = false
       } catch (error) {
         if (!failing) {
-          this.log.warn(`Could not read the cameras' Eufy modes: ${(error as Error).message}`)
+          this.log.warn(`Could not read the cameras' Eufy modes and batteries: ${(error as Error).message}`)
         }
         failing = true
       }
-    }, EUFY_MODE_POLL_MS)
+    }, STATUS_POLL_MS)
     this.api.on(APIEvent.SHUTDOWN, () => clearInterval(timer))
   }
 
@@ -496,7 +505,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
       }
     }
 
-    this.followEufyModes()
+    this.followGatewayStatus()
 
     if (this.config.mqtt) {
       const portmqtt = this.config.portmqtt || '1883'
