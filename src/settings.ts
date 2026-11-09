@@ -56,7 +56,8 @@ export interface CameraConfig {
   mqtt?: MqttCameraConfig
   gatewayCamera?: string // the camera's "name" in the eufy-nvr-gateway's config.json
   wakeOnStream?: boolean // wake the camera while HomeKit streams it (default true)
-  eufyModeSwitch?: boolean // the camera's eufy mode in HomeKit, as a security system (default true)
+  eufyModeSwitch?: boolean // the camera's Eufy mode in HomeKit, as a security system (default true)
+  eufyModes?: Array<'home' | 'away' | 'disarmed'> // the Eufy modes HomeKit offers (default all three)
   sleepWhenStreamEnds?: boolean // let it sleep as soon as the last HomeKit viewer leaves (default true)
   videoConfig?: VideoConfig
 }

@@ -31,7 +31,7 @@ export interface GatewayCameraOptions {
 
 export type GatewayState = 'IDLE' | 'WAKING' | 'LIVE'
 
-// A camera's eufy mode (eufy NVR Gateway 0.7.0 or later): its station's guard mode.
+// A camera's Eufy mode (eufy NVR Gateway 0.7.0 or later): its station's guard mode.
 export type EufyMode = 'away' | 'home' | 'schedule' | 'custom1' | 'custom2' | 'custom3' | 'off' | 'geo' | 'disarmed'
 
 interface Log {
@@ -47,7 +47,7 @@ export const DEFAULT_RTSP_PORT = 8554
 export const DEFAULT_KEEP_ALIVE_MS = 10_000
 const REQUEST_TIMEOUT_MS = 5_000
 const SNAPSHOT_TIMEOUT_MS = 10_000
-const EUFY_TIMEOUT_MS = 35_000 // switching an eufy mode goes to the station (P2P), which can take a while
+const EUFY_TIMEOUT_MS = 35_000 // switching an Eufy mode goes to the station (P2P), which can take a while
 
 // Why a gateway block can't be used, or null when it can.
 export function gatewayProblem(config?: GatewayConfig): string | null {
@@ -159,7 +159,7 @@ export class GatewayClient {
     }
     if (!res.ok) {
       const hint = (res.status === 404 || res.status === 403) && path.endsWith('/eufy-mode')
-        ? ' (switching the eufy mode needs eufy NVR Gateway 0.7.0 or later)'
+        ? ' (switching the Eufy mode needs eufy NVR Gateway 0.7.0 or later)'
         : res.status === 401
           ? ' (check the stream login, "gateway.rtspUsername" and "gateway.rtspPassword"; the gateway must be 0.6.0 or later to accept it)'
           : res.status === 404

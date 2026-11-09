@@ -35,12 +35,12 @@ wakes it; closing it lets the camera sleep again.
   fills in the rest: names, streams, sound, video format, and the model and serial number shown in
   the Home app.
 
-## eufy mode in HomeKit
+## Eufy mode in HomeKit
 
-Each camera gets a **security system** in HomeKit that switches its **eufy mode**, as the eufy app
+Each camera gets a **security system** in HomeKit that switches its **Eufy mode**, as the eufy app
 would (eufy NVR Gateway 0.7.0 or later):
 
-| Home app | eufy mode |
+| Home app | Eufy mode |
 |---|---|
 | Home | Home |
 | Away | Away |
@@ -51,7 +51,9 @@ camera to record motion only in Away, and switch it with a Home app automation s
 person leaves home → Away*. The mode belongs to the camera's station, so a camera behind a HomeBase or
 doorbell chime shares it with every device on that station. A mode switched in the eufy app or by its
 schedule shows in HomeKit within 30 seconds; eufy's Schedule, Custom and Geofencing modes show as Away,
-its Off as Off. Turn it off per camera on the settings page (*eufy mode in HomeKit*).
+its Off as Off. Per camera, the settings page chooses which of Home, Away and Disarmed the Home app offers (untick
+the ones you don't use; the camera's current mode still shows), or turns the security system off
+(*Eufy mode in HomeKit*).
 
 ## Installation
 
@@ -84,8 +86,9 @@ the model and serial number. You choose:
 
 - **Add to HomeKit**: every camera at the first setup; cameras the gateway gets later start off.
 - **Sound**: on when the gateway's stream for that camera has sound (`"audio": true` on the gateway).
-- **eufy mode in HomeKit** (on by default): the camera's security system, see
-  [eufy mode in HomeKit](#eufy-mode-in-homekit).
+- **Eufy mode in HomeKit** (on by default): the camera's security system, see
+  [Eufy mode in HomeKit](#eufy-mode-in-homekit), with tick boxes for the modes the Home app offers
+  (Home, Away, Disarmed).
 - **Sleep as soon as live view closes** (on by default): the camera goes back to sleep the moment
   the last Home app viewer leaves, if the live view was what woke it; a camera that was already awake
   is left alone. If motion starts *while* you watch, closing the live view still ends the session,
@@ -147,7 +150,8 @@ What the settings page writes, for reference:
 | `cameras[].gatewayCamera` | The camera's `name` in the gateway's config.json |
 | `cameras[].name` | The name in the Home app (the settings page uses the gateway's name) |
 | `cameras[].wakeOnStream` | `false`: live view doesn't wake the camera (default `true`) |
-| `cameras[].eufyModeSwitch` | `false`: no eufy mode security system on this camera (default `true`) |
+| `cameras[].eufyModes` | The Eufy modes the Home app offers for the camera, from `"home"`, `"away"`, `"disarmed"` (default all three) |
+| `cameras[].eufyModeSwitch` | `false`: no Eufy mode security system on this camera (default `true`) |
 | `cameras[].sleepWhenStreamEnds` | The camera sleeps as soon as the last viewer leaves, if live view woke it (default `true`); `false`: when the gateway's hold time ends |
 | `cameras[].videoConfig.audio` | Sound in the Home app |
 | `cameras[].videoConfig.vcodec` | `copy` or `libx264`; left out, it is chosen at every start |

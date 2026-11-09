@@ -4,7 +4,7 @@ import type { EufyMode } from './gateway.js'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { eufyModeFor, EufyModeSwitch, HOMEKIT, homeKitStateFor } from './eufyModeSwitch.js'
+import { eufyModeFor, EufyModeSwitch, HOMEKIT, homeKitStateFor, offeredStates } from './eufyModeSwitch.js'
 
 // A stand-in for HomeKit's security system service, recording handlers and updates.
 function fakeHomeKit() {
@@ -58,17 +58,17 @@ function fakeHomeKit() {
 
 const log = { info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn() } as any
 
-function setup() {
+function setup(modes?: unknown[]) {
   const client = { setEufyMode: vi.fn(async (_camera: string, mode: EufyMode) => mode) }
   const homekit = fakeHomeKit()
-  const modeSwitch = new EufyModeSwitch(homekit.api, log, client, homekit.accessory, 'Garden', 'garden')
+  const modeSwitch = new EufyModeSwitch(homekit.api, log, client, homekit.accessory, 'Garden', 'garden', modes)
   return { ...homekit, client, modeSwitch }
 }
 
-describe('a camera\'s eufy mode in HomeKit', () => {
+describe('a camera\'s Eufy mode in HomeKit', () => {
   it('offers Home, Away and Off, no Night', () => {
     const { handlers, added } = setup()
-    expect(added).toEqual(['Garden eufy mode'])
+    expect(added).toEqual(['Garden Eufy mode'])
     expect(handlers.target.props).toEqual({ validValues: [0, 1, 3] })
     expect(handlers.current.props).toEqual({ validValues: [0, 1, 3] })
   })
@@ -83,7 +83,7 @@ describe('a camera\'s eufy mode in HomeKit', () => {
     expect((['schedule', 'custom1', 'custom2', 'custom3', 'geo'] as EufyMode[]).map(homeKitStateFor)).toEqual([1, 1, 1, 1, 1])
   })
 
-  it('switches the camera\'s eufy mode through the gateway', async () => {
+  it('switches the camera\'s Eufy mode through the gateway', async () => {
     const { handlers, client, updates } = setup()
     await handlers.target.set!(HOMEKIT.off)
     expect(client.setEufyMode).toHaveBeenCalledWith('garden', 'disarmed')
@@ -97,7 +97,7 @@ describe('a camera\'s eufy mode in HomeKit', () => {
     expect(handlers.current.get!()).toBe(0)
     modeSwitch.show('custom1')
     expect(updates.at(-1)).toEqual(['current', 1])
-    expect(log.info).toHaveBeenLastCalledWith('eufy mode Custom 1 (switched elsewhere) (shown in HomeKit as Away).', 'Garden')
+    expect(log.info).toHaveBeenLastCalledWith('Eufy mode Custom 1 (switched elsewhere) (shown in HomeKit as Away).', 'Garden')
     updates.length = 0
     modeSwitch.show('custom1') // unchanged: nothing to update
     modeSwitch.show(null) // unknown: keep what it was
@@ -113,7 +113,45 @@ describe('a camera\'s eufy mode in HomeKit', () => {
     const { handlers, client } = setup()
     client.setEufyMode.mockRejectedValue(new Error('garden: station offline'))
     await expect(handlers.target.set!(HOMEKIT.away)).rejects.toThrow('HAP -70402')
-    expect(log.warn).toHaveBeenCalledWith('Could not switch the eufy mode to Away: garden: station offline', 'Garden')
+    expect(log.warn).toHaveBeenCalledWith('Could not switch the Eufy mode to Away: garden: station offline', 'Garden')
     await expect(handlers.target.set!(2)).rejects.toThrow('HAP -70410')
+  })
+})
+
+describe('choosing which Eufy modes HomeKit offers', () => {
+  it('offers all three by default, or the ones chosen, in HomeKit\'s order', () => {
+    expect(offeredStates()).toEqual([0, 1, 3])
+    expect(offeredStates(['disarmed', 'away'])).toEqual([1, 3])
+    expect(offeredStates(['home', 'party'])).toEqual([0]) // unknown modes are ignored
+    expect(offeredStates([])).toEqual([0, 1, 3]) // never none
+  })
+
+  it('the Home app offers only the chosen modes, but shows any current one', () => {
+    const { handlers } = setup(['away', 'disarmed'])
+    expect(handlers.target.props).toEqual({ validValues: [1, 3] })
+    expect(handlers.current.props).toEqual({ validValues: [0, 1, 3] })
+  })
+
+  it('a mode set in the eufy app that isn\'t offered shows as current, never as the target', () => {
+    const { modeSwitch, handlers, updates } = setup(['away', 'disarmed'])
+    modeSwitch.show('away')
+    modeSwitch.show('home')
+    expect(handlers.current.get!()).toBe(0)
+    expect(handlers.target.get!()).toBe(1) // the last offered one
+    expect(updates.filter(([name]) => name === 'target')).toEqual([['target', 1]])
+  })
+
+  it('refuses a mode that isn\'t offered', async () => {
+    const { handlers, client } = setup(['away', 'disarmed'])
+    await expect(handlers.target.set!(HOMEKIT.home)).rejects.toThrow('HAP -70410')
+    expect(client.setEufyMode).not.toHaveBeenCalled()
+    await handlers.target.set!(HOMEKIT.away)
+    expect(client.setEufyMode).toHaveBeenCalledWith('garden', 'away')
+    expect(handlers.target.get!()).toBe(1)
+  })
+
+  it('starts with Off as the target when it is offered, else the first offered mode', () => {
+    expect(setup().handlers.target.get!()).toBe(3)
+    expect(setup(['home', 'away']).handlers.target.get!()).toBe(0)
   })
 })

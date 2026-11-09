@@ -82,7 +82,7 @@ describe('gatewayClient', () => {
     expect((calls[0].init.headers as Record<string, string>).authorization).toBeUndefined()
   })
 
-  it('switches a camera\'s eufy mode (gateway 0.7.0 or later)', async () => {
+  it('switches a camera\'s Eufy mode (gateway 0.7.0 or later)', async () => {
     const { fetchImpl, calls } = fakeFetch(() => json({ mode: 'disarmed' }))
     const client = new GatewayClient({ url: 'http://192.168.1.10:8099', rtspUsername: 'nvr', rtspPassword: 'stream' }, fetchImpl)
     expect(await client.setEufyMode('front door', 'disarmed')).toBe('disarmed')

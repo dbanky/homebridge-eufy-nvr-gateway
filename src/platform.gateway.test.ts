@@ -161,7 +161,7 @@ describe('the stream info for the log', () => {
   })
 })
 
-describe('the cameras\' eufy mode switches', () => {
+describe('the cameras\' Eufy mode switches', () => {
   function fakeSecurityApi() {
     const added: string[] = []
     const characteristic = { setProps: () => characteristic, onGet: () => characteristic, onSet: () => characteristic }
@@ -205,7 +205,7 @@ describe('the cameras\' eufy mode switches', () => {
     const platform = new FfmpegPlatform(logging(), config, modeApi) as any
     platform.setupAccessory(accessory, cameraConfigs(platform).get('uuid-Garden'))
     platform.setupAccessory(accessory, cameraConfigs(platform).get('uuid-Porch'))
-    expect(added).toEqual(['Garden eufy mode'])
+    expect(added).toEqual(['Garden Eufy mode'])
     const show = vi.spyOn(platform.eufyModeSwitches.get('garden'), 'show')
     platform.gateway.status = vi.fn(async () => ({ cameras: [{ name: 'garden', serial: 's', state: 'IDLE', eufyMode: { mode: 'disarmed' } }] }))
     await platform.checkGateway()

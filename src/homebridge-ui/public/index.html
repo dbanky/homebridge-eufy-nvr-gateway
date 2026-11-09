@@ -34,7 +34,7 @@
         <tr class="table-active">
           <th scope="col">Camera</th>
           <th scope="col">Now</th>
-          <th scope="col">eufy mode</th>
+          <th scope="col">Eufy mode</th>
           <th scope="col">Model</th>
           <th scope="col">Serial number</th>
           <th scope="col">Firmware</th>
@@ -187,11 +187,36 @@
         c.sleepWhenStreamEnds = on;
         await store();
       }));
-      details.append(toggle(`cam${index}EufyMode`, 'eufy mode in HomeKit (Home, Away, Off)', c.eufyModeSwitch !== false, false, async (on) => {
+      // Which Eufy modes HomeKit offers (all three unless some are unticked; at least one).
+      const EUFY_MODES = [['home', 'Home'], ['away', 'Away'], ['disarmed', 'Disarmed (Off in HomeKit)']];
+      const offered = () => (Array.isArray(c.eufyModes) ? c.eufyModes : EUFY_MODES.map(([m]) => m));
+      const modeBoxes = el('div', { class: 'ms-4 mb-2', role: 'group', 'aria-label': 'Eufy modes in HomeKit' });
+      const showModeBoxes = () => {
+        const on = c.eufyModeSwitch !== false;
+        for (const box of modeBoxes.querySelectorAll('input')) {
+          box.checked = offered().includes(box.value);
+          box.disabled = !on || (box.checked && offered().length === 1);   // keep at least one
+        }
+      };
+      for (const [mode, label] of EUFY_MODES) {
+        const box = el('input', { type: 'checkbox', class: 'form-check-input', id: `cam${index}Mode-${mode}`, value: mode });
+        box.addEventListener('change', async () => {
+          const next = EUFY_MODES.map(([m]) => m).filter((m) => (m === mode ? box.checked : offered().includes(m)));
+          if (next.length === EUFY_MODES.length) delete c.eufyModes;   // all three: the default
+          else c.eufyModes = next;
+          showModeBoxes();
+          await store();
+        });
+        modeBoxes.append(el('div', { class: 'form-check form-check-inline' }, box, el('label', { class: 'form-check-label ps-1', for: box.id, text: label })));
+      }
+      details.append(toggle(`cam${index}EufyMode`, 'Eufy mode in HomeKit', c.eufyModeSwitch !== false, false, async (on) => {
         if (on) delete c.eufyModeSwitch;   // on unless turned off
         else c.eufyModeSwitch = false;
+        showModeBoxes();
         await store();
       }));
+      details.append(modeBoxes);
+      showModeBoxes();
 
       const codec = el('select', { class: 'form-select', id: `cam${index}Codec` },
         el('option', { value: '', text: `Automatic (now: ${d.codec.vcodec})` }),

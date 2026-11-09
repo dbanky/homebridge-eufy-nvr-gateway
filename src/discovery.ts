@@ -13,7 +13,7 @@ export const DEFAULT_WEB_PORT = 8099
 export interface GatewayCameraStatus {
   name: string
   model?: string | null // from the eufy account, e.g. "SoloCam S340" (newer gateways)
-  eufyMode?: { mode?: EufyMode | null } | null // the camera's eufy mode (gateway 0.7.0 or later)
+  eufyMode?: { mode?: EufyMode | null } | null // the camera's Eufy mode (gateway 0.7.0 or later)
   serial: string
   state: string
   battery?: number | null
@@ -60,7 +60,7 @@ export interface DiscoveredCamera {
   branding: Branding
   codec: CodecChoice
   source: string // the FFmpeg source, password hidden
-  eufyMode: EufyMode | null // the camera's eufy mode, if the gateway reports it
+  eufyMode: EufyMode | null // the camera's Eufy mode, if the gateway reports it
 }
 
 export interface Discovery {

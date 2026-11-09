@@ -178,9 +178,9 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
 
     accessory.configureController(delegate.controller)
 
-    // The camera's eufy mode as a security system (eufyModeSwitch.ts), unless turned off.
+    // The camera's Eufy mode as a security system (eufyModeSwitch.ts), unless turned off.
     if (cameraConfig.gatewayCamera && this.gateway && cameraConfig.eufyModeSwitch !== false) {
-      this.eufyModeSwitches.set(cameraConfig.gatewayCamera, new EufyModeSwitch(this.api, this.log, this.gateway, accessory, cameraConfig.name!, cameraConfig.gatewayCamera))
+      this.eufyModeSwitches.set(cameraConfig.gatewayCamera, new EufyModeSwitch(this.api, this.log, this.gateway, accessory, cameraConfig.name!, cameraConfig.gatewayCamera, cameraConfig.eufyModes))
     }
 
     if (cameraConfig.videoConfig?.prebuffer) {
@@ -456,7 +456,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
     }
   }
 
-  // The cameras' eufy modes, every 30 s with one status request: a mode switched in the eufy app or
+  // The cameras' Eufy modes, every 30 s with one status request: a mode switched in the eufy app or
   // by its schedule shows in HomeKit too.
   private followEufyModes(): void {
     if (!this.gateway || this.eufyModeSwitches.size === 0) {
@@ -472,7 +472,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
         failing = false
       } catch (error) {
         if (!failing) {
-          this.log.warn(`Could not read the cameras' eufy modes: ${(error as Error).message}`)
+          this.log.warn(`Could not read the cameras' Eufy modes: ${(error as Error).message}`)
         }
         failing = true
       }

@@ -4,6 +4,24 @@ All notable changes to this project. Versions follow [Semantic Versioning](https
 This plugin is based on [Homebridge Camera FFmpeg](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg)
 4.1.0; its own history is in [its changelog](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/blob/latest/CHANGELOG.md).
 
+## [0.4.0-alpha.2] - 2026-11-09
+
+A pre-release for testing, with eufy NVR Gateway
+[0.7.0-alpha.2](https://github.com/dbanky/eufy-nvr-gateway/releases/tag/v0.7.0-alpha.2) (or
+0.7.0-alpha.1). Install it with `npm install homebridge-eufy-nvr-gateway@next` in the Homebridge
+terminal; normal updates stay on 0.3.3.
+
+### Added
+
+- **Choose which Eufy modes HomeKit offers**, per camera: tick boxes for Home, Away and Disarmed on
+  the settings page (`eufyModes`). The Home app offers only the ticked ones; a mode set in the eufy
+  app that isn't offered still shows as the camera's current mode.
+
+### Changed
+
+- "Eufy mode" is written with a capital E everywhere: the settings page, the Devices tab, the
+  security system's name in HomeKit and the log.
+
 ## [0.4.0-alpha.1] - 2026-11-09
 
 A pre-release for testing, with eufy NVR Gateway
