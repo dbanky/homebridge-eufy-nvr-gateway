@@ -31,7 +31,9 @@ wakes it; closing it lets the camera sleep again.
   the gateway.
 - **The battery in HomeKit.** A battery camera shows its battery level in the Home app, and *Low
   battery* below 15 % (where the gateway lets only the doorbell or live view wake it). Mains-powered
-  cameras report no battery and show none. The level is read from the gateway every 30 seconds.
+  cameras report no battery and show none. While it charges, from a cable or a solar panel, the Home
+  app says *Charging* (eufy NVR Gateway 0.7.0-beta.2 or later). Both are read from the gateway every
+  30 seconds.
 - **Tiles never wake a camera.** The pictures on the Home app's tiles come from the gateway: the last
   picture while a camera sleeps, the live one while it is awake.
 - **Nothing to type but the gateway's address.** The settings page finds the gateway's cameras and

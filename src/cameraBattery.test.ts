@@ -15,7 +15,7 @@ function fakeHomeKit(existing = false) {
       Characteristic: {
         BatteryLevel: 'level',
         StatusLowBattery: { label: 'low', BATTERY_LEVEL_NORMAL: 0, BATTERY_LEVEL_LOW: 1 },
-        ChargingState: { label: 'charging', NOT_CHARGING: 0 },
+        ChargingState: { label: 'charging', NOT_CHARGING: 0, CHARGING: 1 },
       },
     },
   } as unknown as API
@@ -73,5 +73,18 @@ describe('a camera\'s battery in HomeKit', () => {
     expect(updates[0]).toEqual(['level', 100])
     battery.show(-3)
     expect(updates.filter(([name]) => name === 'level').at(-1)).toEqual(['level', 0])
+  })
+
+  it('says Charging while the gateway reports it (a cable or a solar panel), else Not charging', () => {
+    const { api, accessory, updates } = fakeHomeKit()
+    const battery = new CameraBattery(api, log(), accessory, 'Garden')
+    battery.show(60, false)
+    expect(updates.at(-1)).toEqual(['charging', 0])
+    battery.show(60, true) // same level, now charging: still updated
+    expect(updates.at(-1)).toEqual(['charging', 1])
+    battery.show(61, true)
+    expect(updates.at(-1)).toEqual(['charging', 1])
+    battery.show(61, null) // an older gateway, or not reported
+    expect(updates.at(-1)).toEqual(['charging', 0])
   })
 })

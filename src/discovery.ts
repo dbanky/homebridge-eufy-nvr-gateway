@@ -17,6 +17,7 @@ export interface GatewayCameraStatus {
   serial: string
   state: string
   battery?: number | null
+  charging?: boolean | null // the battery charges, from a cable or a solar panel (gateway 0.7.0-beta.2 or later)
   resolution?: string
   audio?: string | null
   video?: { codec?: string | null, cameraCodec?: string | null, converted?: boolean, transcode?: boolean, text?: string }

@@ -420,7 +420,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
         }
         this.log.info(`Found on the gateway as "${camera.name}" (${camera.state.toLowerCase()}).`, cameraConfig.name)
         this.eufyModeSwitches.get(camera.name)?.show(camera.eufyMode?.mode)
-        this.batteries.get(camera.name)?.show(camera.battery)
+        this.batteries.get(camera.name)?.show(camera.battery, camera.charging)
         // For the stream log: what the gateway streams (no probing per stream).
         const known = this.gatewayCamera(cameraConfig)
         if (known) {
@@ -476,7 +476,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
         const status = await this.gateway!.status() as GatewayStatus
         for (const camera of status.cameras ?? []) {
           this.eufyModeSwitches.get(camera.name)?.show(camera.eufyMode?.mode)
-          this.batteries.get(camera.name)?.show(camera.battery)
+          this.batteries.get(camera.name)?.show(camera.battery, camera.charging)
         }
         failing = false
       } catch (error) {
