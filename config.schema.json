@@ -117,6 +117,12 @@
             "default": true,
             "description": "Let the camera sleep the moment the last Home app viewer leaves, if HomeKit was what woke it (on by default). Off: it sleeps when the gateway's hold time ends (30 s by default), which keeps an NVR's recording going if motion starts while you watch."
           },
+          "eufyModeSwitch": {
+            "title": "eufy Mode in HomeKit",
+            "type": "boolean",
+            "default": true,
+            "description": "A security system on the camera in HomeKit: Home, Away and Off switch the camera's eufy mode to Home, Away and Disarmed (eufy NVR Gateway 0.7.0 or later). What each mode does is set in the eufy app; a camera behind a HomeBase or chime shares that station's mode."
+          },
           "manufacturer": {
             "name": "Manufacturer",
             "type": "string",

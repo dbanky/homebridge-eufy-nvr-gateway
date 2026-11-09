@@ -160,3 +160,55 @@ describe('the stream info for the log', () => {
     expect(platform.gatewayCamera(cameraConfigs(platform).get('uuid-Garden'))).toBe(camera) // the delegate's object
   })
 })
+
+describe('the cameras\' eufy mode switches', () => {
+  function fakeSecurityApi() {
+    const added: string[] = []
+    const characteristic = { setProps: () => characteristic, onGet: () => characteristic, onSet: () => characteristic }
+    const service = { getCharacteristic: () => characteristic, setCharacteristic: () => service, updateCharacteristic: () => service }
+    const accessory = {
+      displayName: 'x',
+      on: vi.fn(),
+      getService: () => undefined,
+      getServiceById: () => undefined,
+      addService: (_type: unknown, name: string) => {
+        added.push(name)
+        return service
+      },
+      configureController: vi.fn(),
+    }
+    const modeApi = {
+      on: vi.fn(),
+      hap: {
+        uuid: { generate: (name: string) => `uuid-${name}` },
+        Service: { AccessoryInformation: 'info', SecuritySystem: 'security', MotionSensor: 'motion', Doorbell: 'doorbell', Switch: 'switch', StatelessProgrammableSwitch: 'sps' },
+        Characteristic: {},
+        CameraController: vi.fn(),
+        SRTPCryptoSuites: { AES_CM_128_HMAC_SHA1_80: 0 },
+        H264Profile: { BASELINE: 0, MAIN: 1, HIGH: 2 },
+        H264Level: { LEVEL3_1: 0, LEVEL3_2: 1, LEVEL4_0: 2 },
+      },
+    } as unknown as API
+    return { modeApi, accessory, added }
+  }
+
+  it('each gateway camera gets one, unless turned off; the startup check shows its mode', async () => {
+    const { modeApi, accessory, added } = fakeSecurityApi()
+    const config = {
+      platform: 'EufyNvrGateway',
+      gateway: { url: 'http://192.168.1.10:8099' },
+      cameras: [
+        { name: 'Garden', gatewayCamera: 'garden', manufacturer: 'eufy', model: 'm', serialNumber: 's', firmwareRevision: '1' },
+        { name: 'Porch', gatewayCamera: 'porch', eufyModeSwitch: false },
+      ],
+    } as unknown as PlatformConfig
+    const platform = new FfmpegPlatform(logging(), config, modeApi) as any
+    platform.setupAccessory(accessory, cameraConfigs(platform).get('uuid-Garden'))
+    platform.setupAccessory(accessory, cameraConfigs(platform).get('uuid-Porch'))
+    expect(added).toEqual(['Garden eufy mode'])
+    const show = vi.spyOn(platform.eufyModeSwitches.get('garden'), 'show')
+    platform.gateway.status = vi.fn(async () => ({ cameras: [{ name: 'garden', serial: 's', state: 'IDLE', eufyMode: { mode: 'disarmed' } }] }))
+    await platform.checkGateway()
+    expect(show).toHaveBeenCalledWith('disarmed')
+  })
+})

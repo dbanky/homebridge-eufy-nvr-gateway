@@ -82,6 +82,22 @@ describe('gatewayClient', () => {
     expect((calls[0].init.headers as Record<string, string>).authorization).toBeUndefined()
   })
 
+  it('switches a camera\'s eufy mode (gateway 0.7.0 or later)', async () => {
+    const { fetchImpl, calls } = fakeFetch(() => json({ mode: 'disarmed' }))
+    const client = new GatewayClient({ url: 'http://192.168.1.10:8099', rtspUsername: 'nvr', rtspPassword: 'stream' }, fetchImpl)
+    expect(await client.setEufyMode('front door', 'disarmed')).toBe('disarmed')
+    expect(calls[0].url.pathname).toBe('/api/cameras/front%20door/eufy-mode')
+    expect(calls[0].init.method).toBe('POST')
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ mode: 'disarmed' })
+  })
+
+  it('passes on the gateway\'s reason, and says when it is too old', async () => {
+    const offline = fakeFetch(() => json({ error: 'garden: station offline' }, 502)).fetchImpl
+    await expect(new GatewayClient({ url: 'http://192.168.1.10:8099' }, offline).setEufyMode('garden', 'away')).rejects.toThrow('POST /api/cameras/garden/eufy-mode: garden: station offline')
+    const old = fakeFetch(() => json({ error: 'the stream login can read the cameras' }, 403)).fetchImpl
+    await expect(new GatewayClient({ url: 'http://192.168.1.10:8099' }, old).setEufyMode('garden', 'away')).rejects.toThrow(/needs eufy NVR Gateway 0\.7\.0 or later/)
+  })
+
   it('reads one camera\'s state from /api/status', async () => {
     const { fetchImpl } = fakeFetch(() => json({ cameras: [{ name: 'front-door', state: 'LIVE' }, { name: 'garden', state: 'IDLE' }] }))
     const client = new GatewayClient({ url: 'http://192.168.1.10:8099' }, fetchImpl)

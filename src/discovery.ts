@@ -2,7 +2,7 @@
 // that follows from the gateway (name, source, branding, audio, video codec), so nobody has to type
 // it. Used by the settings page's server (homebridge-ui/server.ts) and at startup (platform.ts).
 
-import type { GatewayConfig } from './gateway.js'
+import type { EufyMode, GatewayConfig } from './gateway.js'
 import type { CameraConfig } from './settings.js'
 
 import { DEFAULT_RTSP_PORT, GatewayClient } from './gateway.js'
@@ -13,6 +13,7 @@ export const DEFAULT_WEB_PORT = 8099
 export interface GatewayCameraStatus {
   name: string
   model?: string | null // from the eufy account, e.g. "SoloCam S340" (newer gateways)
+  eufyMode?: { mode?: EufyMode | null } | null // the camera's eufy mode (gateway 0.7.0 or later)
   serial: string
   state: string
   battery?: number | null
@@ -59,6 +60,7 @@ export interface DiscoveredCamera {
   branding: Branding
   codec: CodecChoice
   source: string // the FFmpeg source, password hidden
+  eufyMode: EufyMode | null // the camera's eufy mode, if the gateway reports it
 }
 
 export interface Discovery {
@@ -156,6 +158,7 @@ export async function discover(gateway: GatewayConfig, client?: Pick<GatewayClie
       branding: brandingFor(camera, devices, status.gateway?.version),
       codec: codecFor(camera),
       source: hidePassword(forSource.ffmpegSource(camera.name)),
+      eufyMode: camera.eufyMode?.mode ?? null,
     })),
   }
 }

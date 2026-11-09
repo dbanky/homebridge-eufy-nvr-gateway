@@ -122,6 +122,7 @@ function discovered(overrides: Partial<DiscoveredCamera> = {}): DiscoveredCamera
     branding: { manufacturer: 'eufy', model: 'Video Doorbell', serialNumber: 'T8222XXXXXXXXXXX', firmwareRevision: '0.5.1' },
     codec: { vcodec: 'copy', note: '' },
     source: '',
+    eufyMode: null,
     ...overrides,
   }
 }

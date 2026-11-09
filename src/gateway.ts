@@ -31,6 +31,9 @@ export interface GatewayCameraOptions {
 
 export type GatewayState = 'IDLE' | 'WAKING' | 'LIVE'
 
+// A camera's eufy mode (eufy NVR Gateway 0.7.0 or later): its station's guard mode.
+export type EufyMode = 'away' | 'home' | 'schedule' | 'custom1' | 'custom2' | 'custom3' | 'off' | 'geo' | 'disarmed'
+
 interface Log {
   debug: (message: string, name?: string, always?: boolean) => void
   info: (message: string, name?: string) => void
@@ -44,6 +47,7 @@ export const DEFAULT_RTSP_PORT = 8554
 export const DEFAULT_KEEP_ALIVE_MS = 10_000
 const REQUEST_TIMEOUT_MS = 5_000
 const SNAPSHOT_TIMEOUT_MS = 10_000
+const EUFY_TIMEOUT_MS = 35_000 // switching an eufy mode goes to the station (P2P), which can take a while
 
 // Why a gateway block can't be used, or null when it can.
 export function gatewayProblem(config?: GatewayConfig): string | null {
@@ -109,6 +113,11 @@ export class GatewayClient {
     return this.json('GET', '/api/devices')
   }
 
+  async setEufyMode(camera: string, mode: EufyMode): Promise<EufyMode | null> {
+    const answer = await this.json('POST', cameraPath(camera, 'eufy-mode'), { mode })
+    return answer.mode ?? null
+  }
+
   async state(camera: string): Promise<GatewayState> {
     const status = await this.status()
     const found = (status.cameras ?? []).find((c: { name: string }) => c.name === camera)
@@ -127,36 +136,40 @@ export class GatewayClient {
     return image
   }
 
-  private async json(method: string, path: string): Promise<any> {
-    const res = await this.request(method, path, REQUEST_TIMEOUT_MS)
+  private async json(method: string, path: string, body?: unknown): Promise<any> {
+    const res = await this.request(method, path, body === undefined ? REQUEST_TIMEOUT_MS : EUFY_TIMEOUT_MS, body)
     return res.json()
   }
 
   // The gateway's API takes the stream login (eufy NVR Gateway 0.6.0 or later): the camera list,
   // snapshots, wake and sleep are all this plugin does, so it never needs the web page's admin login.
-  private async request(method: string, path: string, timeoutMs: number): Promise<Response> {
+  private async request(method: string, path: string, timeoutMs: number, body?: unknown): Promise<Response> {
     const url = new URL(path, this.base)
-    const headers: Record<string, string> = {}
+    const headers: Record<string, string> = body === undefined ? {} : { 'content-type': 'application/json' }
     if (this.config.rtspUsername) {
       const login = `${this.config.rtspUsername}:${this.config.rtspPassword ?? ''}`
       headers.authorization = `Basic ${Buffer.from(login, 'utf8').toString('base64')}`
     }
     let res: Response
     try {
-      res = await this.fetchImpl(url, { method, headers, signal: AbortSignal.timeout(timeoutMs) })
+      res = await this.fetchImpl(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) })
     } catch (error) {
       const why = (error as Error).name === 'TimeoutError' ? `no answer within ${timeoutMs / 1000} s` : (error as Error).message
       throw new Error(`${method} ${url.pathname}: ${why}`)
     }
     if (!res.ok) {
-      const hint = res.status === 401
-        ? ' (check the stream login, "gateway.rtspUsername" and "gateway.rtspPassword"; the gateway must be 0.6.0 or later to accept it)'
-        : res.status === 404
-          ? ' (check the camera name: it must match "name" in the gateway\'s config.json)'
-          : res.status === 429
-            ? ' (too many wrong logins from this machine: the gateway refuses its logins for a few minutes; check the password)'
-            : ''
-      throw new Error(`${method} ${url.pathname}: HTTP ${res.status}${hint}`)
+      const hint = (res.status === 404 || res.status === 403) && path.endsWith('/eufy-mode')
+        ? ' (switching the eufy mode needs eufy NVR Gateway 0.7.0 or later)'
+        : res.status === 401
+          ? ' (check the stream login, "gateway.rtspUsername" and "gateway.rtspPassword"; the gateway must be 0.6.0 or later to accept it)'
+          : res.status === 404
+            ? ' (check the camera name: it must match "name" in the gateway\'s config.json)'
+            : res.status === 429
+              ? ' (too many wrong logins from this machine: the gateway refuses its logins for a few minutes; check the password)'
+              : ''
+      // The gateway's own reason, when it gives one (e.g. "garden: station offline").
+      const reason = res.status === 502 || res.status === 400 ? await res.json().then(b => b?.error, () => undefined) : undefined
+      throw new Error(`${method} ${url.pathname}: ${reason ?? `HTTP ${res.status}`}${hint}`)
     }
     return res
   }

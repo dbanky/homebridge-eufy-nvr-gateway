@@ -12,12 +12,14 @@ import { APIEvent, CharacteristicEventTypes, PlatformAccessoryEvent } from 'home
 import mqtt from 'mqtt'
 
 import { brandingFor, codecFor } from './discovery.js'
+import { EufyModeSwitch } from './eufyModeSwitch.js'
 import { DEFAULT_KEEP_ALIVE_MS, GatewayClient, gatewayProblem } from './gateway.js'
 import { Logger } from './logger.js'
 import { getVersion, PLATFORM_NAME, PLUGIN_NAME } from './settings.js'
 import { StreamingDelegate } from './streamingDelegate.js'
 
 const version = getVersion()
+const EUFY_MODE_POLL_MS = 30_000
 
 export class FfmpegPlatform implements DynamicPlatformPlugin {
   private readonly log: Logger
@@ -105,7 +107,8 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
     return true
   }
 
-  private readonly gatewayCameras = new Map<string, GatewayCamera>()   // by HomeKit name
+  private readonly gatewayCameras = new Map<string, GatewayCamera>() // by HomeKit name
+  private readonly eufyModeSwitches = new Map<string, EufyModeSwitch>() // by gateway camera name
 
   private gatewayCamera(cameraConfig: CameraConfig): GatewayCamera | undefined {
     if (!cameraConfig.gatewayCamera || !this.gateway) {
@@ -174,6 +177,11 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
     const delegate = new StreamingDelegate(this.log, cameraConfig, this.api, this.api.hap, accessory, this.config.videoProcessor, this.gatewayCamera(cameraConfig))
 
     accessory.configureController(delegate.controller)
+
+    // The camera's eufy mode as a security system (eufyModeSwitch.ts), unless turned off.
+    if (cameraConfig.gatewayCamera && this.gateway && cameraConfig.eufyModeSwitch !== false) {
+      this.eufyModeSwitches.set(cameraConfig.gatewayCamera, new EufyModeSwitch(this.api, this.log, this.gateway, accessory, cameraConfig.name!, cameraConfig.gatewayCamera))
+    }
 
     if (cameraConfig.videoConfig?.prebuffer) {
       this.log.debug('Start prebuffering...', cameraConfig.name)
@@ -404,6 +412,7 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
           throw new Error(`the gateway has no camera named "${cameraConfig.gatewayCamera}"`)
         }
         this.log.info(`Found on the gateway as "${camera.name}" (${camera.state.toLowerCase()}).`, cameraConfig.name)
+        this.eufyModeSwitches.get(camera.name)?.show(camera.eufyMode?.mode)
         // For the stream log: what the gateway streams (no probing per stream).
         const known = this.gatewayCamera(cameraConfig)
         if (known) {
@@ -447,6 +456,30 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
     }
   }
 
+  // The cameras' eufy modes, every 30 s with one status request: a mode switched in the eufy app or
+  // by its schedule shows in HomeKit too.
+  private followEufyModes(): void {
+    if (!this.gateway || this.eufyModeSwitches.size === 0) {
+      return
+    }
+    let failing = false
+    const timer = setInterval(async () => {
+      try {
+        const status = await this.gateway!.status() as GatewayStatus
+        for (const camera of status.cameras ?? []) {
+          this.eufyModeSwitches.get(camera.name)?.show(camera.eufyMode?.mode)
+        }
+        failing = false
+      } catch (error) {
+        if (!failing) {
+          this.log.warn(`Could not read the cameras' eufy modes: ${(error as Error).message}`)
+        }
+        failing = true
+      }
+    }, EUFY_MODE_POLL_MS)
+    this.api.on(APIEvent.SHUTDOWN, () => clearInterval(timer))
+  }
+
   didFinishLaunching(): void {
     void this.checkGateway()
     for (const [uuid, cameraConfig] of this.cameraConfigs) {
@@ -462,6 +495,8 @@ export class FfmpegPlatform implements DynamicPlatformPlugin {
         this.accessories.push(cachedAccessory)
       }
     }
+
+    this.followEufyModes()
 
     if (this.config.mqtt) {
       const portmqtt = this.config.portmqtt || '1883'

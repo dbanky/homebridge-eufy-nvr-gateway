@@ -34,6 +34,7 @@
         <tr class="table-active">
           <th scope="col">Camera</th>
           <th scope="col">Now</th>
+          <th scope="col">eufy mode</th>
           <th scope="col">Model</th>
           <th scope="col">Serial number</th>
           <th scope="col">Firmware</th>
@@ -186,6 +187,11 @@
         c.sleepWhenStreamEnds = on;
         await store();
       }));
+      details.append(toggle(`cam${index}EufyMode`, 'eufy mode in HomeKit (Home, Away, Off)', c.eufyModeSwitch !== false, false, async (on) => {
+        if (on) delete c.eufyModeSwitch;   // on unless turned off
+        else c.eufyModeSwitch = false;
+        await store();
+      }));
 
       const codec = el('select', { class: 'form-select', id: `cam${index}Codec` },
         el('option', { value: '', text: `Automatic (now: ${d.codec.vcodec})` }),
@@ -329,12 +335,14 @@
           note('warning', `Can't reach the gateway right now (${(error && error.message) || error}): showing the saved settings only.`);
         }
         const STATES = { IDLE: 'Asleep', WAKING: 'Waking up', LIVE: 'Live' };
+        const EUFY_LABELS = { away: 'Away', home: 'Home', schedule: 'Schedule', custom1: 'Custom 1', custom2: 'Custom 2', custom3: 'Custom 3', off: 'Off', geo: 'Geofencing', disarmed: 'Disarmed' };
         for (const camera of cameras) {
           const d = live.get(camera.gatewayCamera);
           const now = !live.size ? '—' : !d ? 'Not on the gateway' : `${STATES[d.state] || d.state}${d.battery === null ? '' : ` · battery ${d.battery}%`}`;
           const cells = [
             camera.name === camera.gatewayCamera ? camera.name : `${camera.name} (${camera.gatewayCamera})`,
             now,
+            d && d.eufyMode ? EUFY_LABELS[d.eufyMode] || d.eufyMode : '—',
             camera.model || (d && d.branding.model) || '—',
             camera.serialNumber || (d && d.serial) || '—',
             camera.firmwareRevision || (d && d.branding.firmwareRevision) || '—',
