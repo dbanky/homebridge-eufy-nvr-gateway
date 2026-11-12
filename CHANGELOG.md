@@ -4,6 +4,16 @@ All notable changes to this project. Versions follow [Semantic Versioning](https
 This plugin is based on [Homebridge Camera FFmpeg](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg)
 4.1.0; its own history is in [its changelog](https://github.com/homebridge-plugins/homebridge-camera-ffmpeg/blob/latest/CHANGELOG.md).
 
+## [0.4.1] - 2026-11-12
+
+Maintenance. Works with every eufy NVR Gateway from 0.6.0, including
+[0.7.1](https://github.com/dbanky/eufy-nvr-gateway/releases/tag/v0.7.1) with its updated eufy bridge.
+
+### Changed
+
+- Dependencies updated within their version ranges, among them `@homebridge/plugin-ui-utils` 2.3.0
+  and `pick-port` 2.2.1, plus the build and test tools. No change in behaviour.
+
 ## [0.4.0] - 2026-11-09
 
 Works with every eufy NVR Gateway from 0.6.0; the Eufy mode and charging need
